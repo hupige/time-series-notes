@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第2章 时间序列的预处理 | 应用时间序列分析</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['$','$'],['\\(','\\)']],displayMath:[['$$','$$'],['\\[','\\]']]},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};</script>
+<style>
+/* === CSS Variables === */
+:root {
+  --accent: #ea580c;
+  --accent2: #0891b2;
+  --accent-light: #fff7ed;
+  --accent2-light: #ecfeff;
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  --bg-page: #f8fafc;
+  --bg-card: #ffffff;
+  --border-color: #e5e7eb;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --max-content: 820px;
+  --toc-width: 260px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "SF Mono", Monaco, "Cascadia Code", Consolas, "Noto Sans SC", monospace;
+}
+
+/* === Reset & Base === */
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* === Layout === */
+.page-wrap { display: flex; min-height: 100vh; }
+aside.toc {
+  width: var(--toc-width);
+  flex-shrink: 0;
+  padding: 32px 20px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-color);
+}
+main.main-content {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 0 24px 80px;
+}
+.content-inner {
+  width: 100%;
+  max-width: var(--max-content);
+}
+
+/* === TOC === */
+.toc-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--accent);
+}
+.toc ul { list-style: none; }
+.toc li { margin-bottom: 6px; }
+.toc a {
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  transition: all .2s;
+}
+.toc a:hover { background: var(--accent-light); color: var(--accent); text-decoration: none; }
+.toc a.active { background: var(--accent); color: #fff; font-weight: 600; }
+.toc .toc-h2 { font-weight: 600; }
+.toc .toc-h3 { padding-left: 18px; font-size: 12.5px; color: var(--text-muted); }
+
+/* === Hero === */
+.hero {
+  position: relative;
+  background: linear-gradient(135deg, #ea580c 0%, #0891b2 50%, #1e3a5f 100%);
+  color: #fff;
+  padding: 72px 40px 64px;
+  border-radius: var(--radius);
+  margin: 32px 0 40px;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  opacity: .6;
+}
+.hero-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  background: rgba(255,255,255,.2);
+  backdrop-filter: blur(8px);
+  padding: 6px 14px;
+  border-radius: 999px;
+  margin-bottom: 18px;
+  position: relative;
+  z-index: 1;
+}
+.hero h1 {
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 14px;
+  position: relative;
+  z-index: 1;
+}
+.hero p {
+  font-size: 17px;
+  opacity: .92;
+  max-width: 560px;
+  line-height: 1.65;
+  position: relative;
+  z-index: 1;
+}
+
+/* === Section Title === */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 56px 0 24px;
+  padding-bottom: 12px;
+  border-bottom: 3px solid var(--border-color);
+  scroll-margin-top: 24px;
+}
+.section-title .num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+/* === Sub Title === */
+.sub-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 32px 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  scroll-margin-top: 24px;
+}
+.sub-title::before {
+  content: '';
+  width: 5px;
+  height: 22px;
+  background: var(--accent2);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* === Paragraph & Lists === */
+.content-inner p {
+  margin-bottom: 14px;
+  color: var(--text-secondary);
+}
+.content-inner ul, .content-inner ol {
+  margin: 12px 0 16px 22px;
+  color: var(--text-secondary);
+}
+.content-inner li { margin-bottom: 6px; }
+.content-inner li::marker { color: var(--accent); }
+.content-inner strong { color: var(--text-primary); }
+
+/* === Callout === */
+.callout {
+  border-radius: var(--radius-sm);
+  padding: 18px 22px;
+  margin: 20px 0;
+  border-left: 4px solid var(--accent);
+  background: var(--accent-light);
+}
+.callout.info { border-color: var(--accent2); background: var(--accent2-light); }
+.callout.warn { border-color: #d97706; background: #fffbeb; }
+.callout.danger { border-color: #dc2626; background: #fef2f2; }
+.callout-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout .callout-title { color: var(--accent); }
+.callout.info .callout-title { color: var(--accent2); }
+.callout.warn .callout-title { color: #b45309; }
+.callout.danger .callout-title { color: #b91c1c; }
+
+/* === Card Grid === */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  transition: transform .2s, box-shadow .2s;
+}
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.card h4 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.card p {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  margin-bottom: 0;
+  line-height: 1.65;
+}
+
+/* === Formula Block === */
+.formula-block {
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 20px 24px;
+  margin: 20px 0;
+  text-align: center;
+  font-size: 16px;
+  overflow-x: auto;
+}
+.formula-block .label {
+  display: block;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 10px;
+}
+.formula-inline {
+  display: inline;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: .95em;
+  color: var(--text-primary);
+}
+
+/* === Chart & Diagram === */
+.chart-figure, .diagram-figure {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  margin: 24px 0;
+  box-shadow: var(--shadow-sm);
+}
+.chart-figure .chart-caption, .diagram-figure .diagram-caption {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 10px;
+  font-weight: 500;
+}
+.chart-container { width: 100%; height: 360px; }
+
+/* === Step List === */
+.step-list {
+  list-style: none;
+  margin: 20px 0;
+  padding: 0;
+  counter-reset: step;
+}
+.step-list > li {
+  position: relative;
+  padding-left: 48px;
+  margin-bottom: 18px;
+  min-height: 36px;
+}
+.step-list > li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.step-list > li strong { color: var(--text-primary); }
+
+/* === Table Wrap === */
+.table-wrap {
+  overflow-x: auto;
+  margin: 20px 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: var(--bg-card);
+}
+.table-wrap th {
+  background: linear-gradient(135deg, var(--accent-light), #fff);
+  color: var(--text-primary);
+  font-weight: 700;
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 2px solid var(--border-color);
+}
+.table-wrap td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+.table-wrap tr:hover td { background: #f8fafc; }
+
+/* === Flow Diagram (CSS-only) === */
+.flow-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 24px 0;
+  padding: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+.flow-box {
+  background: linear-gradient(135deg, var(--accent-light), #fff);
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+.flow-arrow {
+  color: var(--accent2);
+  font-size: 20px;
+  font-weight: 800;
+}
+.flow-box.end { border-color: var(--accent2); color: var(--accent2); background: var(--accent2-light); }
+
+/* === Footer === */
+.page-footer {
+  margin-top: 64px;
+  padding-top: 32px;
+  border-top: 2px solid var(--border-color);
+}
+.page-footer h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+}
+.refs { list-style: none; padding: 0; }
+.refs li {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  padding-left: 18px;
+  position: relative;
+}
+.refs li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* === Responsive === */
+@media (max-width: 1024px) {
+  aside.toc { display: none; }
+  .page-wrap { display: block; }
+  main.main-content { padding: 0 16px 60px; }
+  .hero { padding: 48px 24px 44px; margin: 16px 0 32px; }
+  .hero h1 { font-size: 28px; }
+}
+@media (max-width: 640px) {
+  .hero h1 { font-size: 24px; }
+  .section-title { font-size: 20px; }
+  .card-grid { grid-template-columns: 1fr; }
+  .chart-container { height: 280px; }
+  .flow-wrap { flex-direction: column; }
+  .flow-arrow { transform: rotate(90deg); }
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+<!-- TOC Sidebar -->
+<aside class="toc">
+  <div class="toc-title">目录</div>
+  <ul>
+    <li class="toc-h2"><a href="#sec-2-1">2.1 平稳性检验</a></li>
+    <li class="toc-h3"><a href="#sec-2-1-1">2.1.1 平稳时间序列的定义</a></li>
+    <li class="toc-h3"><a href="#sec-2-1-2">2.1.2 平稳时间序列的统计性质</a></li>
+    <li class="toc-h3"><a href="#sec-2-1-3">2.1.3 平稳性检验方法</a></li>
+    <li class="toc-h2"><a href="#sec-2-2">2.2 纯随机性检验</a></li>
+    <li class="toc-h3"><a href="#sec-2-2-1">2.2.1 纯随机序列的定义</a></li>
+    <li class="toc-h3"><a href="#sec-2-2-2">2.2.2 白噪声序列的性质</a></li>
+    <li class="toc-h3"><a href="#sec-2-2-3">2.2.3 纯随机性检验</a></li>
+    <li class="toc-h2"><a href="#sec-2-3">2.3 差分运算简介</a></li>
+    <li class="toc-h2"><a href="#summary">本章小结</a></li>
+  </ul>
+</aside>
+
+<!-- Main Content -->
+<main class="main-content">
+<div class="content-inner">
+
+<!-- Hero -->
+<section class="hero">
+  <span class="hero-badge">Chapter 02</span>
+  <h1>时间序列的预处理</h1>
+  <p>在正式建模之前，必须对时间序列进行预处理。本章介绍平稳性检验、纯随机性检验与差分运算三大核心步骤，为后续的ARIMA等模型奠定坚实基础。</p>
+</section>
+
+<!-- 2.1 平稳性检验 -->
+<h2 class="section-title" id="sec-2-1"><span class="num">2.1</span>平稳性检验</h2>
+
+<p>时间序列分析的大多数经典模型（如ARMA）都要求序列满足<strong>平稳性</strong>假设。因此，在建模之前，首要任务是对序列进行平稳性检验。如果序列不平稳，则需要通过差分或其他变换手段将其转化为平稳序列。</p>
+
+<h3 class="sub-title" id="sec-2-1-1">平稳时间序列的定义</h3>
+
+<p>在时间序列分析中，"平稳"有两种不同层次的定义：<strong>严平稳（Strictly Stationary）</strong>与<strong>宽平稳（Weakly Stationary，又称二阶平稳）</strong>。</p>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>严平稳</h4>
+    <p>对于任意正整数 $m$，任意时刻点 $t_1,t_2,\dots,t_m$ 和任意时间滞后 $k$，序列的联合分布满足：
+    $$F_{t_1,\dots,t_m}(x_1,\dots,x_m)=F_{t_1+k,\dots,t_m+k}(x_1,\dots,x_m)$$
+    即所有有限维分布都不随时间平移而改变。</p>
+  </div>
+  <div class="card">
+    <h4>宽平稳（二阶平稳）</h4>
+    <p>若序列满足：(1) $E(X_t)=\mu$ 为常数；(2) $E(X_t^2)<\infty$；(3) 自协方差 $\gamma(t,s)$ 仅依赖于时间差 $|t-s|$。金融与经济学中通常采用此定义。</p>
+  </div>
+</div>
+
+<div class="callout info">
+  <div class="callout-title">金融实践提示</div>
+  <p>在金融工程中，我们通常使用<strong>宽平稳</strong>而非严平稳。这是因为金融数据往往具有厚尾特征，高阶矩可能不存在，但一阶矩和二阶矩的稳定性已足以支持大多数资产定价与风险管理模型。</p>
+</div>
+
+<h3 class="sub-title" id="sec-2-1-2">平稳时间序列的统计性质</h3>
+
+<p>若 $\{X_t\}$ 为宽平稳时间序列，则其具有以下三条核心统计性质：</p>
+
+<ol>
+  <li><strong>常数均值</strong>：$E(X_t)=\mu$，序列围绕固定的水平随机波动，不存在趋势成分。</li>
+  <li><strong>常数方差</strong>：$\text{Var}(X_t)=\gamma(0)=\sigma^2$，序列波动的幅度不随时间变化。</li>
+  <li><strong>自协方差仅与滞后 $k$ 有关</strong>：$\gamma(k)=\text{Cov}(X_t,X_{t+k})$，与时间起点 $t$ 无关。</li>
+</ol>
+
+<div class="formula-block">
+  <span class="label">自协方差函数</span>
+  $$\gamma(k)=\text{Cov}(X_t,X_{t+k})=E\left[(X_t-\mu)(X_{t+k}-\mu)\right],\quad k=0,\pm1,\pm2,\dots$$
+</div>
+
+<p>由此可定义<strong>自相关系数（ACF）</strong>：</p>
+
+<div class="formula-block">
+  <span class="label">自相关系数</span>
+  $$\rho(k)=\frac{\gamma(k)}{\gamma(0)}=\frac{\text{Cov}(X_t,X_{t+k})}{\text{Var}(X_t)}$$
+</div>
+
+<h3 class="sub-title" id="sec-2-1-3">平稳性检验方法</h3>
+
+<p>实际应用中，平稳性检验主要分为<strong>图检验法</strong>与<strong>统计检验法</strong>两大类。</p>
+
+<p><strong>（1）时序图检验</strong></p>
+<p>时序图（Time Plot）是最直观的检验方法。将序列值随时间绘制散点图或折线图，观察其是否围绕某一常数均值随机波动，且波动幅度保持大致稳定。若序列呈现明显的上升/下降趋势，或波动幅度随时间变化，则可初步判断为<strong>非平稳</strong>。</p>
+
+<p><strong>（2）自相关图检验</strong></p>
+<p>对样本自相关函数（SACF）作图，观察其衰减速度：</p>
+<ul>
+  <li><strong>平稳序列</strong>的 SACF 通常迅速衰减至零（指数衰减或振荡衰减）。</li>
+  <li><strong>非平稳序列</strong>的 SACF 衰减非常缓慢，甚至在很长的滞后阶数上仍显著不为零。</li>
+</ul>
+
+<div class="chart-figure">
+  <div id="chart-stationary-acf" class="chart-container"></div>
+  <div class="chart-caption">图 2-1 平稳序列与非平稳序列的自相关函数对比</div>
+</div>
+
+<p><strong>（3）单位根检验</strong></p>
+<p>单位根检验是最常用的形式化统计检验方法，核心思想是检验序列中是否存在单位根（unit root）。若存在单位根，则序列非平稳。主要方法包括：</p>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>检验方法</th><th>全称</th><th>特点</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>DF检验</strong></td>
+        <td>Dickey-Fuller Test</td>
+        <td>最基础的单位根检验，要求扰动项为白噪声</td>
+      </tr>
+      <tr>
+        <td><strong>ADF检验</strong></td>
+        <td>Augmented Dickey-Fuller Test</td>
+        <td>DF的扩展，通过引入滞后差分项消除高阶自相关，最常用</td>
+      </tr>
+      <tr>
+        <td><strong>PP检验</strong></td>
+        <td>Phillips-Perron Test</td>
+        <td>采用非参数修正处理异方差，对模型设定依赖较小</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<p>以 ADF 检验为例，其回归方程为：</p>
+
+<div class="formula-block">
+  <span class="label">ADF检验回归方程</span>
+  $$\Delta X_t = \alpha + \beta t + \gamma X_{t-1} + \sum_{i=1}^{p}\delta_i\Delta X_{t-i} + \varepsilon_t$$
+</div>
+
+<p>其中，$\alpha$ 为截距项，$\beta t$ 为时间趋势项，$p$ 为滞后阶数（通常由信息准则或逐步检验确定）。原假设与备择假设为：</p>
+
+<ul>
+  <li>$H_0: \gamma = 0$（序列存在单位根，即非平稳）</li>
+  <li>$H_1: \gamma < 0$（序列平稳）</li>
+</ul>
+
+<p>若 ADF 统计量小于临界值（或 $p$ 值小于显著性水平 $\alpha$），则拒绝 $H_0$，认为序列平稳。</p>
+
+<ol class="step-list">
+  <li><strong>确定检验形式</strong>：根据序列是否含截距项和趋势项，选择三种回归形式之一（无常数无趋势、有常数无趋势、有常数有趋势）。</li>
+  <li><strong>选择滞后阶数 $p$</strong>：常用 AIC、BIC 信息准则，或从较大滞后阶数开始逐步降低直至最后一项显著。</li>
+  <li><strong>估计 ADF 回归方程</strong>，计算 ADF 统计量 $t=\hat\gamma/\text{SE}(\hat\gamma)$。</li>
+  <li><strong>查表比较</strong>：将 ADF 统计量与 MacKinnon 临界值比较，或使用软件输出的 $p$ 值进行判断。</li>
+  <li><strong>得出结论</strong>：拒绝 $H_0$ 则序列平稳；不拒绝则序列非平稳，需进行差分后再检验。</li>
+</ol>
+
+<div class="chart-figure">
+  <div id="chart-adf-demo" class="chart-container"></div>
+  <div class="chart-caption">图 2-2 随机游走（非平稳）与平稳序列的对比</div>
+</div>
+
+<div class="callout">
+  <div class="callout-title">金融案例</div>
+  <p>在金融市场中，<strong>股票价格</strong>本身通常是非平稳的（表现为随机游走），而<strong>股票收益率</strong>（对数价格的一阶差分）通常近似为平稳序列。这也是为什么大多数金融时间序列模型直接对收益率而非价格进行建模的根本原因。</p>
+</div>
+
+<!-- 2.2 纯随机性检验 -->
+<h2 class="section-title" id="sec-2-2"><span class="num">2.2</span>纯随机性检验</h2>
+
+<p>通过平稳性检验后，我们得到了一个平稳序列。但这并不意味着该序列"值得建模"——如果序列本身就是纯随机的（白噪声），则其中没有任何可提取的规律性信息。因此，第二步是进行<strong>纯随机性检验</strong>。</p>
+
+<h3 class="sub-title" id="sec-2-2-1">纯随机序列的定义</h3>
+
+<p>纯随机序列（Purely Random Process），又称<strong>白噪声（White Noise）</strong>，是时间序列分析中最基本的随机过程。若随机序列 $\{\varepsilon_t\}$ 满足以下条件，则称其为白噪声序列：</p>
+
+<div class="formula-block">
+  <span class="label">白噪声定义</span>
+  $$E(\varepsilon_t)=0,\quad \text{Var}(\varepsilon_t)=\sigma^2,\quad \text{Cov}(\varepsilon_t,\varepsilon_s)=0\; (t\neq s)$$
+</div>
+
+<p>用符号简记为 $\varepsilon_t \sim WN(0,\sigma^2)$。白噪声序列的每一项都是均值为零、方差相同且彼此不相关的随机变量。</p>
+
+<h3 class="sub-title" id="sec-2-2-2">白噪声序列的性质</h3>
+
+<p>白噪声序列具有以下三条核心性质：</p>
+
+<ol>
+  <li><strong>自协方差函数</strong>：
+    $$\gamma(k)=\begin{cases}\sigma^2, & k=0\\ 0, & k\neq0\end{cases}$$
+  </li>
+  <li><strong>自相关系数</strong>：
+    $$\rho(k)=\begin{cases}1, & k=0\\ 0, & k\neq0\end{cases}$$
+  </li>
+  <li><strong>ACF图特征</strong>：理论上，白噪声序列的 ACF 仅在滞后 0 处为 1，其余所有滞后阶数上的自相关系数均为 0。样本 ACF 图应在零附近随机波动，大部分落在置信区间内。</li>
+</ol>
+
+<div class="chart-figure">
+  <div id="chart-wn-acf" class="chart-container"></div>
+  <div class="chart-caption">图 2-3 白噪声序列的样本自相关函数（含95%置信区间）</div>
+</div>
+
+<h3 class="sub-title" id="sec-2-2-3">纯随机性检验</h3>
+
+<p>实际中我们通过样本数据判断序列是否为白噪声。最常用的检验方法是 <strong>Ljung-Box 检验</strong>（简称 LB 检验），它是 Box-Pierce 检验的改进版本，在小样本下具有更好的性质。</p>
+
+<div class="formula-block">
+  <span class="label">Ljung-Box 统计量</span>
+  $$Q_{LB}=n(n+2)\sum_{k=1}^{m}\frac{\hat\rho_k^2}{n-k}$$
+</div>
+
+<p>其中，$n$ 为样本容量，$m$ 为最大滞后阶数（通常取 $\sqrt{n}$ 或 $10$ 左右），$\hat\rho_k$ 为样本滞后 $k$ 自相关系数。</p>
+
+<p>假设检验设定如下：</p>
+<ul>
+  <li><strong>原假设</strong> $H_0$: $\rho_1=\rho_2=\dots=\rho_m=0$（序列为白噪声）</li>
+  <li><strong>备择假设</strong> $H_1$: 至少存在某个 $\rho_k\neq0$（序列非白噪声）</li>
+</ul>
+
+<p>在 $H_0$ 成立时，$Q_{LB}$ 近似服从自由度为 $m$ 的 $\chi^2$ 分布：</p>
+
+<div class="formula-block">
+  <span class="label">决策规则</span>
+  $$Q_{LB} > \chi^2_{\alpha}(m) \quad\Rightarrow\quad \text{拒绝 } H_0, \text{ 序列非白噪声}$$
+</div>
+
+<p>等价地，若 $p$ 值小于显著性水平 $\alpha$（通常取 0.05），则拒绝原假设。</p>
+
+<div class="callout warn">
+  <div class="callout-title">重要判断逻辑</div>
+  <p><strong>通过白噪声检验</strong>（不拒绝 $H_0$）：说明序列中已无自相关结构，不需要进一步建模——<strong>建模结束</strong>。<br>
+  <strong>拒绝白噪声检验</strong>（拒绝 $H_0$）：说明序列中存在显著的自相关结构，<strong>还有信息可以提取</strong>，值得进一步建立 ARMA 等模型。</p>
+</div>
+
+<div class="callout info">
+  <div class="callout-title">金融案例</div>
+  <p>检验某只股票的日收益率是否为白噪声：若 LB 检验拒绝 $H_0$，说明收益率序列存在可预测的自相关结构（如波动聚集、动量效应），这为量化交易策略的构建提供了统计基础。若不能拒绝 $H_0$，则说明市场近似弱式有效，历史收益率难以预测未来。</p>
+</div>
+
+<!-- 2.3 差分运算简介 -->
+<h2 class="section-title" id="sec-2-3"><span class="num">2.3</span>差分运算简介</span></h2>
+
+<p>当时间序列不通过平稳性检验时，最常用的处理手段是<strong>差分运算（Differencing）</strong>。差分的本质是通过相邻观测值之间的减法运算，消除序列中的确定性趋势成分，从而将其转化为平稳序列。</p>
+
+<h3 class="sub-title">差分的定义</h3>
+
+<p>设 $\{X_t\}$ 为时间序列，定义如下几种常见的差分运算：</p>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>一阶差分</h4>
+    <p>$$\nabla X_t = X_t - X_{t-1}$$<br>消除线性趋势，是最常用的差分方式。</p>
+  </div>
+  <div class="card">
+    <h4>二阶差分</h4>
+    <p>$$\nabla^2 X_t = \nabla(\nabla X_t) = X_t - 2X_{t-1} + X_{t-2}$$<br>消除二次趋势，适用于存在曲率的趋势。</p>
+  </div>
+  <div class="card">
+    <h4>$p$ 步差分</h4>
+    <p>$$\nabla_p X_t = X_t - X_{t-p}$$<br>消除周期为 $p$ 的季节性成分。</p>
+  </div>
+</div>
+
+<h3 class="sub-title">差分的作用</h3>
+
+<p>差分运算在时间序列预处理中发挥两个核心作用：</p>
+
+<ol>
+  <li><strong>提取确定性信息</strong>：通过差分将序列中的趋势、季节性等确定性成分剥离出来，使残差部分呈现平稳特征。</li>
+  <li><strong>实现平稳化</strong>：对单位根过程（如随机游走）进行适当阶数的差分后，可得到平稳序列，从而满足 ARMA 等模型的建模前提。</li>
+</ol>
+
+<div class="formula-block">
+  <span class="label">随机游走与差分</span>
+  $$X_t = X_{t-1} + \varepsilon_t \quad\xrightarrow{\text{一阶差分}}\quad \nabla X_t = \varepsilon_t \sim WN(0,\sigma^2)$$
+</div>
+
+<div class="callout warn">
+  <div class="callout-title">注意事项</div>
+  <p><strong>过度差分</strong>（Over-differencing）会造成信息浪费，甚至引入虚假的相关结构。一般原则是：使序列平稳所需的最低差分阶数即为最优。在实际操作中，通常先尝试一阶差分，若仍不平稳再考虑二阶差分，二阶以上差分在金融数据中极少使用。</p>
+</div>
+
+<!-- Summary -->
+<h2 class="section-title" id="summary"><span class="num">小结</span>预处理流程</h2>
+
+<p>综合本章内容，时间序列预处理的标准流程如下：</p>
+
+<div class="flow-wrap">
+  <div class="flow-box">绘制时序图</div>
+  <span class="flow-arrow">&rarr;</span>
+  <div class="flow-box">平稳性检验<br><small>（图检验 / ADF检验）</small></div>
+  <span class="flow-arrow">&rarr;</span>
+  <div class="flow-box">白噪声检验<br><small>（Ljung-Box）</small></div>
+  <span class="flow-arrow">&rarr;</span>
+  <div class="flow-box end">建模 / 差分</div>
+</div>
+
+<ul>
+  <li>若<strong>不平稳</strong>：进行差分运算，然后重新进行平稳性检验。</li>
+  <li>若<strong>平稳且为白噪声</strong>：序列无建模价值，分析结束。</li>
+  <li>若<strong>平稳且非白噪声</strong>：序列含有可提取的信息，进入 ARMA 等模型建模阶段。</li>
+</ul>
+
+<!-- Footer References -->
+<footer class="page-footer">
+  <h3>参考文献</h3>
+  <ol class="refs">
+    <li>Box, G. E. P., Jenkins, G. M., Reinsel, G. C., & Ljung, G. M. (2015). <em>Time Series Analysis: Forecasting and Control</em> (5th ed.). Wiley.</li>
+    <li>Dickey, D. A., & Fuller, W. A. (1979). Distribution of the Estimators for Autoregressive Time Series with a Unit Root. <em>Journal of the American Statistical Association</em>, 74(366), 427-431.</li>
+    <li>Ljung, G. M., & Box, G. E. P. (1978). On a Measure of Lack of Fit in Time Series Models. <em>Biometrika</em>, 65(2), 297-303.</li>
+    <li>Phillips, P. C. B., & Perron, P. (1988). Testing for a Unit Root in Time Series Regression. <em>Biometrika</em>, 75(2), 335-346.</li>
+    <li>Tsay, R. S. (2010). <em>Analysis of Financial Time Series</em> (3rd ed.). Wiley.（中译本：《金融时间序列分析》）</li>
+  </ol>
+</footer>
+
+</div>
+</main>
+</div>
+
+<script>
+/* === TOC Active State === */
+const tocLinks=document.querySelectorAll('.toc a');
+const sections=document.querySelectorAll('h2[id],h3[id]');
+function onScroll(){
+  let current='';
+  sections.forEach(sec=>{ if(scrollY>=sec.offsetTop-80) current=sec.getAttribute('id'); });
+  tocLinks.forEach(link=>{ link.classList.toggle('active', link.getAttribute('href')==='#'+current); });
+}
+window.addEventListener('scroll',onScroll);
+onScroll();
+
+/* === Chart 1: Stationary vs Non-stationary ACF === */
+(function(){
+  const chart=echarts.init(document.getElementById('chart-stationary-acf'));
+  const lags=Array.from({length:21},(_,i)=>i);
+  const stationary=[1,0.72,0.52,0.37,0.27,0.19,0.14,0.10,0.07,0.05,0.04,0.03,0.02,0.02,0.01,0.01,0.01,0,0,0,0];
+  const nonstationary=[1,0.96,0.92,0.88,0.84,0.81,0.77,0.74,0.71,0.68,0.65,0.62,0.59,0.57,0.54,0.52,0.50,0.47,0.45,0.43,0.41];
+  chart.setOption({
+    tooltip:{trigger:'axis'},
+    legend:{data:['平稳序列（AR(1), φ=0.7）','非平稳序列（随机游走）'],bottom:0},
+    grid:{left:'3%',right:'4%',bottom:'15%',top:'10%',containLabel:true},
+    xAxis:{type:'category',data:lags,name:'滞后阶数 k',nameLocation:'middle',nameGap:25},
+    yAxis:{type:'value',name:'ACF',min:-0.2,max:1.1,splitLine:{lineStyle:{type:'dashed'}}},
+    series:[
+      {name:'平稳序列（AR(1), φ=0.7）',type:'bar',data:stationary,itemStyle:{color:'#0891b2'},barWidth:'35%'},
+      {name:'非平稳序列（随机游走）',type:'line',data:nonstationary,smooth:true,symbol:'circle',lineStyle:{color:'#ea580c',width:3},itemStyle:{color:'#ea580c'},areaStyle:{color:'rgba(234,88,12,0.1)'}}
+    ]
+  });
+})();
+
+/* === Chart 2: White Noise ACF with Confidence Band === */
+(function(){
+  const chart=echarts.init(document.getElementById('chart-wn-acf'));
+  const lags=Array.from({length:21},(_,i)=>i);
+  const n=200;
+  const se=1/Math.sqrt(n);
+  const upper=lags.map(()=>1.96*se);
+  const lower=lags.map(()=>-1.96*se);
+  const acf=[1,0.03,-0.05,0.08,-0.02,0.06,-0.04,0.01,-0.07,0.03,0.02,-0.06,0.04,-0.01,0.05,-0.03,0.02,-0.04,0.01,0.03,-0.02];
+  chart.setOption({
+    tooltip:{trigger:'axis'},
+    legend:{data:['样本ACF','95%置信区间上限','95%置信区间下限'],bottom:0},
+    grid:{left:'3%',right:'4%',bottom:'15%',top:'10%',containLabel:true},
+    xAxis:{type:'category',data:lags,name:'滞后阶数 k',nameLocation:'middle',nameGap:25},
+    yAxis:{type:'value',name:'ACF',min:-0.3,max:1.1,splitLine:{lineStyle:{type:'dashed'}}},
+    series:[
+      {name:'95%置信区间上限',type:'line',data:upper,lineStyle:{type:'dashed',color:'#9ca3af',width:1},symbol:'none'},
+      {name:'95%置信区间下限',type:'line',data:lower,lineStyle:{type:'dashed',color:'#9ca3af',width:1},symbol:'none'},
+      {name:'样本ACF',type:'bar',data:acf,itemStyle:{color:function(p){return p.dataIndex===0?'#ea580c':'#0891b2';}},barWidth:'40%'}
+    ]
+  });
+})();
+
+/* === Chart 3: ADF Demo: Random Walk vs Stationary === */
+(function(){
+  const chart=echarts.init(document.getElementById('chart-adf-demo'));
+  const t=Array.from({length:101},(_,i)=>i);
+  let rw=[0], ar=[0];
+  for(let i=1;i<=100;i++){
+    rw.push(rw[i-1]+(Math.random()-0.5));
+    ar.push(0.7*ar[i-1]+(Math.random()-0.5));
+  }
+  chart.setOption({
+    tooltip:{trigger:'axis'},
+    legend:{data:['随机游走（非平稳）','AR(1)过程（平稳）'],bottom:0},
+    grid:{left:'3%',right:'4%',bottom:'15%',top:'10%',containLabel:true},
+    xAxis:{type:'category',data:t,name:'时间 t',nameLocation:'middle',nameGap:25},
+    yAxis:{type:'value',name:'序列值',splitLine:{lineStyle:{type:'dashed'}}},
+    series:[
+      {name:'随机游走（非平稳）',type:'line',data:rw,smooth:false,symbol:'none',lineStyle:{color:'#ea580c',width:2}},
+      {name:'AR(1)过程（平稳）',type:'line',data:ar,smooth:false,symbol:'none',lineStyle:{color:'#0891b2',width:2}}
+    ]
+  });
+})();
+
+/* === Resize === */
+window.addEventListener('resize',()=>{
+  ['chart-stationary-acf','chart-wn-acf','chart-adf-demo'].forEach(id=>{
+    const el=document.getElementById(id); if(el) echarts.getInstanceByDom(el)?.resize();
+  });
+});
+</script>
+</body>
+</html>

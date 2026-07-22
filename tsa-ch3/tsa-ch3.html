@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第3章 平稳时间序列分析 | 应用时间序列分析</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+/* =========================================
+   CSS Variables & Reset
+   ========================================= */
+:root {
+  --accent: #2563eb;
+  --accent2: #7c3aed;
+  --accent-light: #eff6ff;
+  --accent-dark: #1e3a5f;
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --bg-page: #f8fafc;
+  --bg-card: #ffffff;
+  --border-color: #e5e7eb;
+  --radius: 12px;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Noto Sans SC", monospace;
+  --toc-width: 280px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* =========================================
+   Layout
+   ========================================= */
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* TOC Sidebar */
+.toc-sidebar {
+  width: var(--toc-width);
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-color);
+  overflow-y: auto;
+  padding: 2rem 1.5rem;
+  z-index: 100;
+}
+.toc-sidebar::-webkit-scrollbar { width: 4px; }
+.toc-sidebar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
+.toc-brand {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+  letter-spacing: -0.02em;
+}
+.toc-subbrand {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.toc-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.toc-list { list-style: none; }
+.toc-list li { margin-bottom: 0.125rem; }
+.toc-list a {
+  display: block;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.15s ease;
+  line-height: 1.5;
+}
+.toc-list a:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+.toc-list a.active {
+  background: linear-gradient(90deg, var(--accent-light), transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.toc-h2 { padding-left: 0.6rem !important; }
+.toc-h3 { padding-left: 1.4rem !important; font-size: 0.78rem !important; }
+
+/* Main Content */
+.main-content {
+  margin-left: var(--toc-width);
+  flex: 1;
+  max-width: 820px;
+  padding: 0 2.5rem 4rem;
+}
+
+/* Mobile TOC toggle */
+.toc-toggle {
+  display: none;
+  position: fixed;
+  top: 1rem; left: 1rem;
+  z-index: 200;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .toc-sidebar { transform: translateX(-100%); transition: transform 0.3s ease; }
+  .toc-sidebar.open { transform: translateX(0); }
+  .main-content { margin-left: 0; max-width: 100%; padding: 0 1.5rem 4rem; }
+  .toc-toggle { display: block; }
+}
+
+/* =========================================
+   Hero
+   ========================================= */
+.hero {
+  position: relative;
+  margin: 0 -2.5rem 2.5rem;
+  padding: 4rem 2.5rem 3.5rem;
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 50%, #1e3a5f 100%);
+  color: #fff;
+  overflow: hidden;
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.6;
+}
+.hero-badge {
+  position: relative;
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(8px);
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  margin-bottom: 1rem;
+}
+.hero h1 {
+  position: relative;
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+}
+.hero-desc {
+  position: relative;
+  font-size: 1.05rem;
+  opacity: 0.9;
+  max-width: 600px;
+  line-height: 1.7;
+}
+.hero-meta {
+  position: relative;
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.8125rem;
+  opacity: 0.75;
+}
+
+@media (max-width: 1100px) {
+  .hero { margin: 0 -1.5rem 2rem; padding: 3rem 1.5rem 2.5rem; }
+  .hero h1 { font-size: 1.75rem; }
+}
+
+/* =========================================
+   Section Title & Sub-title
+   ========================================= */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 2.5rem 0 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--border-color);
+  scroll-margin-top: 1.5rem;
+}
+.section-title::before {
+  content: "";
+  display: block;
+  width: 5px;
+  height: 1.5rem;
+  background: linear-gradient(180deg, var(--accent), var(--accent2));
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.section-title .sec-num {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.sub-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 2rem 0 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  scroll-margin-top: 1.5rem;
+}
+.sub-title::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--accent2);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sub-title .sec-num {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--accent2);
+  font-weight: 600;
+}
+
+/* =========================================
+   Typography
+   ========================================= */
+p {
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+}
+strong { color: var(--text-primary); font-weight: 600; }
+
+/* =========================================
+   Callout
+   ========================================= */
+.callout {
+  position: relative;
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+  background: var(--accent-light);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 0.9375rem;
+}
+.callout.warning {
+  background: #fffbeb;
+  border-left-color: #f59e0b;
+}
+.callout.danger {
+  background: #fef2f2;
+  border-left-color: #ef4444;
+}
+.callout.success {
+  background: #f0fdf4;
+  border-left-color: #22c55e;
+}
+.callout-title {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.callout p:last-child { margin-bottom: 0; }
+
+/* =========================================
+   Card Grid
+   ========================================= */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+.card-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+.card-body {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* =========================================
+   Formula Block & Inline
+   ========================================= */
+.formula-block {
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin: 1.25rem 0;
+  text-align: center;
+  font-family: "Times New Roman", "STIX Two Math", "Latin Modern Math", serif;
+  font-size: 1.15rem;
+  color: var(--text-primary);
+  position: relative;
+  overflow-x: auto;
+}
+.formula-block .fb-label {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.8);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+.formula-inline {
+  display: inline-block;
+  background: #f1f5f9;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-family: "Times New Roman", "STIX Two Math", serif;
+  font-size: 0.95em;
+  color: var(--text-primary);
+}
+
+/* =========================================
+   Chart & Diagram Figure
+   ========================================= */
+.chart-figure, .diagram-figure {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow-sm);
+}
+.chart-figure .cf-title, .diagram-figure .df-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+  text-align: center;
+}
+.chart-figure .cf-subtitle, .diagram-figure .df-subtitle {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 1rem;
+}
+.chart-container {
+  width: 100%;
+  height: 360px;
+}
+
+/* =========================================
+   Step List
+   ========================================= */
+.step-list {
+  list-style: none;
+  counter-reset: step;
+  margin: 1.25rem 0;
+}
+.step-list li {
+  position: relative;
+  padding-left: 2.5rem;
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+}
+.step-list li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0.1rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* =========================================
+   Table Wrap
+   ========================================= */
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+}
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  font-size: 0.875rem;
+}
+.table-wrap th {
+  background: linear-gradient(135deg, var(--accent-light), #f1f5f9);
+  color: var(--text-primary);
+  font-weight: 600;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 2px solid var(--border-color);
+  white-space: nowrap;
+}
+.table-wrap td {
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+.table-wrap tr:last-child td { border-bottom: none; }
+.table-wrap tr:hover td { background: #f8fafc; }
+.table-caption {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+/* =========================================
+   Model Card
+   ========================================= */
+.model-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  margin: 1.5rem 0;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.mc-header {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.mc-abbr {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 800;
+  background: rgba(255,255,255,0.2);
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+}
+.mc-full {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  opacity: 0.95;
+}
+.mc-body {
+  padding: 1.25rem 1.5rem;
+}
+.mc-formula {
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  font-family: "Times New Roman", "STIX Two Math", serif;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+.mc-params {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+.mc-params dt {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 0.5rem;
+}
+.mc-params dd { margin-left: 1rem; margin-top: 0.15rem; }
+.mc-finance {
+  background: #f0fdf4;
+  border-left: 3px solid #22c55e;
+  border-radius: 0 8px 8px 0;
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+.mc-finance strong {
+  color: #15803d;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* =========================================
+   Compare Grid
+   ========================================= */
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.compare-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease;
+}
+.compare-card:hover { box-shadow: var(--shadow); }
+.compare-card .cc-name {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.compare-card .cc-item {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+.compare-card .cc-item strong {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-bottom: 0.15rem;
+}
+@media (max-width: 640px) {
+  .compare-grid { grid-template-columns: 1fr; }
+}
+
+/* =========================================
+   Summary Box
+   ========================================= */
+.summary-box {
+  background: linear-gradient(135deg, var(--accent-light), #f1f5f9);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+.summary-box h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* =========================================
+   Footer & References
+   ========================================= */
+.page-footer {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 2px solid var(--border-color);
+}
+.page-footer h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+.ref-list {
+  list-style: none;
+  counter-reset: ref;
+}
+.ref-list li {
+  position: relative;
+  padding-left: 2rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.ref-list li::before {
+  counter-increment: ref;
+  content: "[" counter(ref) "]";
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* =========================================
+   Utilities
+   ========================================= */
+.text-center { text-align: center; }
+.mt-2 { margin-top: 0.5rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+</style>
+</head>
+<body>
+
+<button class="toc-toggle" onclick="document.querySelector('.toc-sidebar').classList.toggle('open')">&#9776; 目录</button>
+
+<div class="layout">
+
+<!-- ==================== TOC SIDEBAR ==================== -->
+<nav class="toc-sidebar" id="toc">
+  <div class="toc-brand">应用时间序列分析</div>
+  <div class="toc-subbrand">金融工程系列</div>
+  <div class="toc-title">本章导航</div>
+  <ul class="toc-list">
+    <li><a href="#sec-3-1" class="toc-h2">3.1 Wold分解定理</a></li>
+    <li><a href="#sec-3-2" class="toc-h2">3.2 AR模型</a></li>
+    <li><a href="#sec-3-2-1" class="toc-h3">3.2.1 AR(p)定义</a></li>
+    <li><a href="#sec-3-2-2" class="toc-h3">3.2.2 平稳性判别</a></li>
+    <li><a href="#sec-3-2-3" class="toc-h3">3.2.3 统计性质</a></li>
+    <li><a href="#sec-3-2-4" class="toc-h3">3.2.4 自相关系数(ACF)</a></li>
+    <li><a href="#sec-3-2-5" class="toc-h3">3.2.5 偏自相关系数(PACF)</a></li>
+    <li><a href="#sec-3-3" class="toc-h2">3.3 MA模型</a></li>
+    <li><a href="#sec-3-3-1" class="toc-h3">3.3.1 MA(q)定义</a></li>
+    <li><a href="#sec-3-3-2" class="toc-h3">3.3.2 统计性质</a></li>
+    <li><a href="#sec-3-3-3" class="toc-h3">3.3.3 ACF</a></li>
+    <li><a href="#sec-3-3-4" class="toc-h3">3.3.4 PACF</a></li>
+    <li><a href="#sec-3-4" class="toc-h2">3.4 ARMA模型</a></li>
+    <li><a href="#sec-3-4-1" class="toc-h3">3.4.1 ARMA(p,q)定义</a></li>
+    <li><a href="#sec-3-4-2" class="toc-h3">3.4.2 平稳性与可逆性</a></li>
+    <li><a href="#sec-3-4-3" class="toc-h3">3.4.3 ACF和PACF</a></li>
+    <li><a href="#sec-summary" class="toc-h2">Summary</a></li>
+  </ul>
+</nav>
+
+<!-- ==================== MAIN CONTENT ==================== -->
+<main class="main-content">
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-badge">Chapter 03</div>
+  <h1>平稳时间序列分析</h1>
+  <p class="hero-desc">深入理解ARMA模型的理论基础与统计性质，掌握自回归、移动平均及混合模型的识别方法与金融应用。</p>
+  <div class="hero-meta">
+    <span>ARMA模型</span>
+    <span>ACF / PACF</span>
+    <span>平稳性 & 可逆性</span>
+  </div>
+</section>
+
+<!-- Section 3.1 -->
+<h2 class="section-title" id="sec-3-1"><span class="sec-num">3.1</span> Wold分解定理</h2>
+
+<p><strong>Wold分解定理（Wold Decomposition Theorem）</strong>是时间序列分析的理论基石，它揭示了任何离散平稳时间序列的内在结构。</p>
+
+<div class="callout">
+  <div class="callout-title">Wold分解定理</div>
+  <p>任何离散平稳时间序列都可以唯一地分解为确定性成分和随机成分之和：</p>
+</div>
+
+<div class="formula-block">
+  <span class="fb-label">式 3-1</span>
+  x<sub>t</sub> = V<sub>t</sub> + &eta;<sub>t</sub>
+</div>
+
+<p>其中：</p>
+<ul style="margin: 0.75rem 0 1rem 1.5rem; color: var(--text-secondary);">
+  <li><strong>V<sub>t</sub></strong> 为<strong>确定性序列</strong>（Deterministic Component），可被历史值完全预测</li>
+  <li><strong>&eta;<sub>t</sub></strong> 为<strong>随机序列</strong>（Stochastic Component），是无限阶移动平均过程</li>
+</ul>
+
+<p>随机成分 &eta;<sub>t</sub> 可进一步表示为：</p>
+
+<div class="formula-block">
+  <span class="fb-label">式 3-2</span>
+  &eta;<sub>t</sub> = &sum;<sub>j=0</sub><sup>&infin;</sup> &psi;<sub>j</sub> &epsilon;<sub>t-j</sub>
+</div>
+
+<p>其中 <span class="formula-inline">&psi;<sub>0</sub> = 1</span>，<span class="formula-inline">&sum;<sub>j=0</sub><sup>&infin;</sup> &psi;<sub>j</sub><sup>2</sup> &lt; &infin;</span>，&epsilon;<sub>t</sub> 为白噪声过程。</p>
+
+<div class="callout success">
+  <div class="callout-title">理论意义</div>
+  <p>Wold分解定理表明：对于平稳序列，只要建立适当的ARMA模型，就能充分捕捉其动态特征。这为ARMA模型提供了坚实的理论基础——确定性部分可用AR结构逼近，随机部分可用MA结构刻画。</p>
+</div>
+
+<!-- Section 3.2 -->
+<h2 class="section-title" id="sec-3-2"><span class="sec-num">3.2</span> AR模型（自回归模型）</h2>
+
+<h3 class="sub-title" id="sec-3-2-1"><span class="sec-num">3.2.1</span> AR(p)定义</h3>
+
+<p><strong>自回归模型（AutoRegressive Model, AR）</strong>的核心思想是：当前时刻的观测值可以由其历史值的线性组合加上随机扰动来解释。</p>
+
+<div class="formula-block">
+  <span class="fb-label">式 3-3</span>
+  x<sub>t</sub> = &phi;<sub>0</sub> + &phi;<sub>1</sub> x<sub>t-1</sub> + &phi;<sub>2</sub> x<sub>t-2</sub> + &hellip; + &phi;<sub>p</sub> x<sub>t-p</sub> + &epsilon;<sub>t</sub>
+</div>
+
+<p>引入<strong>滞后算子</strong> <span class="formula-inline">L</span>（其中 <span class="formula-inline">L<sup>k</sup> x<sub>t</sub> = x<sub>t-k</sub></span>），AR(p)模型可简洁表示为：</p>
+
+<div class="formula-block">
+  <span class="fb-label">式 3-4</span>
+  &Phi;(L) x<sub>t</sub> = &phi;<sub>0</sub> + &epsilon;<sub>t</sub>
+</div>
+
+<p>其中 <span class="formula-inline">&Phi;(L) = 1 - &phi;<sub>1</sub>L - &phi;<sub>2</sub>L<sup>2</sup> - &hellip; - &phi;<sub>p</sub>L<sup>p</sup></span> 称为<strong>自回归特征多项式</strong>。</p>
+
+<h3 class="sub-title" id="sec-3-2-2"><span class="sec-num">3.2.2</span> 平稳性判别</h3>
+
+<p>并非所有AR(p)过程都是平稳的。平稳性判别有以下两种等价方法：</p>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">特征根法</div>
+    <div class="card-body">
+      求解特征方程 <span class="formula-inline">&Phi;(&lambda;) = 0</span> 的所有根。若所有特征根的模都<strong>在单位圆内</strong>（即 <span class="formula-inline">|&lambda;<sub>i</sub>| &lt; 1</span>），则AR(p)过程平稳。
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">平稳域法</div>
+    <div class="card-body">
+      通过模型参数 &phi;<sub>1</sub>, &hellip;, &phi;<sub>p</sub> 构成的约束条件判断。例如AR(1)的平稳域为 <span class="formula-inline">|&phi;<sub>1</sub>| &lt; 1</span>；AR(2)的平稳域为三角形区域。
+    </div>
+  </div>
+</div>
+
+<div class="callout warning">
+  <div class="callout-title">注意区分</div>
+  <p>有些教材使用"特征方程 <span class="formula-inline">1 - &phi;<sub>1</sub>z - &hellip; - &phi;<sub>p</sub>z<sup>p</sup> = 0</span> 的根在单位圆<strong>外</strong>"作为平稳条件——这与"特征根在单位圆内"是等价的，只是特征多项式定义方式不同，切勿混淆。</p>
+</div>
+
+<h3 class="sub-title" id="sec-3-2-3"><span class="sec-num">3.2.3</span> 统计性质</h3>
+
+<p>对于零均值的平稳AR(p)过程，其统计性质可推导如下：</p>
+
+<div class="formula-block">
+  <span class="fb-label">均值</span>
+  E(x<sub>t</sub>) = &mu; = <span class="formula-inline">&phi;<sub>0</sub> / (1 - &phi;<sub>1</sub> - &hellip; - &phi;<sub>p</sub>)</span>
+</div>
+
+<div class="formula-block">
+  <span class="fb-label">方差</span>
+  Var(x<sub>t</sub>) = &gamma;<sub>0</sub> = &sigma;<sub>&epsilon;</sub><sup>2</sup> / (1 - &phi;<sub>1</sub>&rho;<sub>1</sub> - &hellip; - &phi;<sub>p</sub>&rho;<sub>p</sub>)
+</div>
+
+<div class="formula-block">
+  <span class="fb-label">自协方差函数</span>
+  &gamma;<sub>k</sub> = &phi;<sub>1</sub>&gamma;<sub>k-1</sub> + &phi;<sub>2</sub>&gamma;<sub>k-2</sub> + &hellip; + &phi;<sub>p</sub>&gamma;<sub>k-p</sub> 　(k &ge; 1)
+</div>
+
+<p>上述自协方差递推关系称为<strong>Yule-Walker方程</strong>，是AR模型参数估计的重要工具。</p>
+
+<h3 class="sub-title" id="sec-3-2-4"><span class="sec-num">3.2.4</span> 自相关系数(ACF)：拖尾特征</h3>
+
+<p>AR(p)过程的自相关系数(ACF)具有<strong>拖尾（Tail-off）</strong>特征：即 &rho;<sub>k</sub> 不会在某阶后突然截断为零，而是呈指数衰减或正弦振荡衰减。</p>
+
+<div class="formula-block">
+  <span class="fb-label">式 3-5</span>
+  &rho;<sub>k</sub> = &phi;<sub>1</sub>&rho;<sub>k-1</sub> + &phi;<sub>2</sub>&rho;<sub>k-2</sub> + &hellip; + &phi;<sub>p</sub>&rho;<sub>k-p</sub> 　(k &ge; 1)
+</div>
+
+<p>这一递推关系说明：AR(p)的ACF被其特征方程的根所控制，尾部被负指数函数控制而趋于零。</p>
+
+<h3 class="sub-title" id="sec-3-2-5"><span class="sec-num">3.2.5</span> 偏自相关系数(PACF)：p阶截尾特征</h3>
+
+<p><strong>偏自相关系数（Partial Autocorrelation Function, PACF）</strong>衡量了剔除中间滞后项影响后，x<sub>t</sub> 与 x<sub>t-k</sub> 的净相关关系。</p>
+
+<div class="callout success">
+  <div class="callout-title">AR(p)的PACF核心性质</div>
+  <p>AR(p)过程的偏自相关系数具有<strong>p阶截尾</strong>特征：</p>
+  <p style="margin-top:0.5rem;"><span class="formula-inline">&phi;<sub>kk</sub> = 0</span>，对于所有 <span class="formula-inline">k &gt; p</span></p>
+</div>
+
+<p>这意味着，若序列的PACF在滞后p阶后突然"截断"为零，则提示该序列可能服从AR(p)模型。</p>
+
+<!-- AR(1) and AR(2) Model Cards -->
+<div class="model-card">
+  <div class="mc-header">
+    <div class="mc-abbr">AR(1)</div>
+    <div class="mc-full">一阶自回归模型</div>
+  </div>
+  <div class="mc-body">
+    <div class="mc-formula">x<sub>t</sub> = &phi;<sub>0</sub> + &phi;<sub>1</sub> x<sub>t-1</sub> + &epsilon;<sub>t</sub></div>
+    <dl class="mc-params">
+      <dt>平稳条件</dt><dd>|&phi;<sub>1</sub>| &lt; 1</dd>
+      <dt>均值</dt><dd>&mu; = &phi;<sub>0</sub> / (1 - &phi;<sub>1</sub>)</dd>
+      <dt>方差</dt><dd>&gamma;<sub>0</sub> = &sigma;<sub>&epsilon;</sub><sup>2</sup> / (1 - &phi;<sub>1</sub><sup>2</sup>)</dd>
+      <dt>ACF</dt><dd>&rho;<sub>k</sub> = &phi;<sub>1</sub><sup>k</sup> （指数衰减，拖尾）</dd>
+      <dt>PACF</dt><dd>&phi;<sub>11</sub> = &phi;<sub>1</sub>；&phi;<sub>kk</sub> = 0 (k &gt; 1) （1阶截尾）</dd>
+    </dl>
+    <div class="mc-finance">
+      <strong>金融含义</strong><br>
+      AR(1)过程具有<strong>均值回归（Mean Reversion）</strong>特性：当 &phi;<sub>1</sub> &gt; 0 时，偏离均值的冲击会逐渐衰减回复到长期均值。利率、汇率等金融变量常呈现此特征。
+    </div>
+  </div>
+</div>
+
+<div class="model-card">
+  <div class="mc-header">
+    <div class="mc-abbr">AR(2)</div>
+    <div class="mc-full">二阶自回归模型</div>
+  </div>
+  <div class="mc-body">
+    <div class="mc-formula">x<sub>t</sub> = &phi;<sub>0</sub> + &phi;<sub>1</sub> x<sub>t-1</sub> + &phi;<sub>2</sub> x<sub>t-2</sub> + &epsilon;<sub>t</sub></div>
+    <dl class="mc-params">
+      <dt>平稳条件</dt><dd>&phi;<sub>1</sub> + &phi;<sub>2</sub> &lt; 1；&phi;<sub>2</sub> - &phi;<sub>1</sub> &lt; 1；|&phi;<sub>2</sub>| &lt; 1</dd>
+      <dt>ACF</dt><dd>满足 &rho;<sub>k</sub> = &phi;<sub>1</sub>&rho;<sub>k-1</sub> + &phi;<sub>2</sub>&rho;<sub>k-2</sub>，拖尾衰减</dd>
+      <dt>PACF</dt><dd>&phi;<sub>kk</sub> = 0 (k &gt; 2) （2阶截尾）</dd>
+    </dl>
+    <div class="mc-finance">
+      <strong>金融含义</strong><br>
+      AR(2)可刻画具有周期性均值回归的金融序列，例如季节性调整的宏观经济指标或某些具有两期记忆效应的市场价格。
+    </div>
+  </div>
+</div>
+
+<!-- AR Chart -->
+<div class="chart-figure">
+  <div class="cf-title">AR(1)模型的ACF与PACF特征</div>
+  <div class="cf-subtitle">参数 &phi;<sub>1</sub> = 0.7 | 左图ACF拖尾衰减，右图PACF在滞后1阶后截断</div>
+  <div id="chart-ar-acf" class="chart-container"></div>
+</div>
+
+<!-- Section 3.3 -->
+<h2 class="section-title" id="sec-3-3"><span class="sec-num">3.3</span> MA模型（移动平均模型）</h2>
+
+<h3 class="sub-title" id="sec-3-3-1"><span class="sec-num">3.3.1</span> MA(q)定义</h3>
+
+<p><strong>移动平均模型（Moving Average Model, MA）</strong>描述的是当前观测值受当前及历史随机冲击影响的结构。</p>
+
+<div class="formula-block">
+  <span class="fb-label">式 3-6</span>
+  x<sub>t</sub> = &mu; + &epsilon;<sub>t</sub> - &theta;<sub>1</sub> &epsilon;<sub>t-1</sub> - &theta;<sub>2</sub> &epsilon;<sub>t-2</sub> - &hellip; - &theta;<sub>q</sub> &epsilon;<sub>t-q</sub>
+</div>
+
+<p>使用滞后算子表示为：</p>
+
+<div class="formula-block">
+  <span class="fb-label">式 3-7</span>
+  x<sub>t</sub> = &mu; + &Theta;(L) &epsilon;<sub>t</sub>
+</div>
+
+<p>其中 <span class="formula-inline">&Theta;(L) = 1 - &theta;<sub>1</sub>L - &theta;<sub>2</sub>L<sup>2</sup> - &hellip; - &theta;<sub>q</sub>L<sup>q</sup></span> 称为<strong>移动平均特征多项式</strong>。</p>
+
+<h3 class="sub-title" id="sec-3-3-2"><span class="sec-num">3.3.2</span> 统计性质：有限记忆性</h3>
+
+<p>MA(q)过程具有<strong>有限记忆性（Finite Memory）</strong>：当前观测值仅受最近q期的随机冲击影响。</p>
+
+<div class="formula-block">
+  <span class="fb-label">均值</span>
+  E(x<sub>t</sub>) = &mu;
+</div>
+
+<div class="formula-block">
+  <span class="fb-label">方差</span>
+  Var(x<sub>t</sub>) = &sigma;<sub>&epsilon;</sub><sup>2</sup> (1 + &theta;<sub>1</sub><sup>2</sup> + &theta;<sub>2</sub><sup>2</sup> + &hellip; + &theta;<sub>q</sub><sup>2</sup>)
+</div>
+
+<h3 class="sub-title" id="sec-3-3-3"><span class="sec-num">3.3.3</span> ACF：q阶截尾</h3>
+
+<p>MA(q)过程的自协方差函数在滞后q阶后严格为零：</p>
+
+<div class="formula-block">
+  <span class="fb-label">式 3-8</span>
+  &gamma;<sub>k</sub> = 0 　(k &gt; q)
+</div>
+
+<p>因此，MA(q)的<strong>自相关系数(ACF)具有q阶截尾</strong>特征。这是识别MA模型阶数的关键依据。</p>
+
+<h3 class="sub-title" id="sec-3-3-4"><span class="sec-num">3.3.4</span> PACF：拖尾</h3>
+
+<p>与AR模型相反，MA(q)过程的<strong>偏自相关系数(PACF)呈现拖尾</strong>特征，被负指数函数控制而逐渐衰减至零。</p>
+
+<!-- MA(1) and MA(2) Model Cards -->
+<div class="model-card">
+  <div class="mc-header">
+    <div class="mc-abbr">MA(1)</div>
+    <div class="mc-full">一阶移动平均模型</div>
+  </div>
+  <div class="mc-body">
+    <div class="mc-formula">x<sub>t</sub> = &mu; + &epsilon;<sub>t</sub> - &theta;<sub>1</sub> &epsilon;<sub>t-1</sub></div>
+    <dl class="mc-params">
+      <dt>可逆条件</dt><dd>|&theta;<sub>1</sub>| &lt; 1</dd>
+      <dt>方差</dt><dd>&gamma;<sub>0</sub> = &sigma;<sub>&epsilon;</sub><sup>2</sup>(1 + &theta;<sub>1</sub><sup>2</sup>)</dd>
+      <dt>ACF</dt><dd>&rho;<sub>1</sub> = -&theta;<sub>1</sub>/(1+&theta;<sub>1</sub><sup>2</sup>)；&rho;<sub>k</sub> = 0 (k &gt; 1) （1阶截尾）</dd>
+      <dt>PACF</dt><dd>拖尾衰减</dd>
+    </dl>
+    <div class="mc-finance">
+      <strong>金融含义</strong><br>
+      MA(1)模型刻画了市场冲击的短期影响：一个意外冲击 &epsilon;<sub>t</sub> 仅影响当期和下一期观测值，之后完全消散。适用于描述收益率对新闻事件的短暂反应。
+    </div>
+  </div>
+</div>
+
+<div class="model-card">
+  <div class="mc-header">
+    <div class="mc-abbr">MA(2)</div>
+    <div class="mc-full">二阶移动平均模型</div>
+  </div>
+  <div class="mc-body">
+    <div class="mc-formula">x<sub>t</sub> = &mu; + &epsilon;<sub>t</sub> - &theta;<sub>1</sub> &epsilon;<sub>t-1</sub> - &theta;<sub>2</sub> &epsilon;<sub>t-2</sub></div>
+    <dl class="mc-params">
+      <dt>可逆条件</dt><dd>&theta;<sub>1</sub> + &theta;<sub>2</sub> &lt; 1；&theta;<sub>2</sub> - &theta;<sub>1</sub> &lt; 1；|&theta;<sub>2</sub>| &lt; 1</dd>
+      <dt>ACF</dt><dd>&rho;<sub>1</sub>、&rho;<sub>2</sub> 非零；&rho;<sub>k</sub> = 0 (k &gt; 2) （2阶截尾）</dd>
+      <dt>PACF</dt><dd>拖尾衰减</dd>
+    </dl>
+    <div class="mc-finance">
+      <strong>金融含义</strong><br>
+      MA(2)适用于市场冲击效应持续两期的场景，例如某些宏观经济 announcements 对市场情绪的影响可能持续多个交易日。
+    </div>
+  </div>
+</div>
+
+<!-- MA Chart -->
+<div class="chart-figure">
+  <div class="cf-title">MA(1)模型的ACF与PACF特征</div>
+  <div class="cf-subtitle">参数 &theta;<sub>1</sub> = 0.6 | 左图ACF在滞后1阶后截断，右图PACF拖尾衰减</div>
+  <div id="chart-ma-acf" class="chart-container"></div>
+</div>
+
+<!-- Section 3.4 -->
+<h2 class="section-title" id="sec-3-4"><span class="sec-num">3.4</span> ARMA模型</h2>
+
+<h3 class="sub-title" id="sec-3-4-1"><span class="sec-num">3.4.1</span> ARMA(p,q)定义</h3>
+
+<p><strong>自回归移动平均模型（AutoRegressive Moving Average Model, ARMA）</strong>将AR和MA结构相结合，以更灵活地刻画时间序列的动态特征。</p>
+
+<div class="formula-block">
+  <span class="fb-label">式 3-9</span>
+  x<sub>t</sub> = &phi;<sub>0</sub> + &phi;<sub>1</sub> x<sub>t-1</sub> + &hellip; + &phi;<sub>p</sub> x<sub>t-p</sub> + &epsilon;<sub>t</sub> - &theta;<sub>1</sub> &epsilon;<sub>t-1</sub> - &hellip; - &theta;<sub>q</sub> &epsilon;<sub>t-q</sub>
+</div>
+
+<p>使用滞后算子表示：</p>
+
+<div class="formula-block">
+  <span class="fb-label">式 3-10</span>
+  &Phi;(L) x<sub>t</sub> = &phi;<sub>0</sub> + &Theta;(L) &epsilon;<sub>t</sub>
+</div>
+
+<p>ARMA(p,q)模型兼具了AR的"记忆性"和MA的"冲击响应"特征，是实践中应用最广泛的平稳时间序列模型。</p>
+
+<h3 class="sub-title" id="sec-3-4-2"><span class="sec-num">3.4.2</span> 平稳性与可逆性条件</h3>
+
+<p>ARMA(p,q)过程需要同时满足两个条件：</p>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">平稳性条件（AR部分）</div>
+    <div class="card-body">
+      AR特征方程 <span class="formula-inline">&Phi;(&lambda;) = 0</span> 的所有根在单位圆内（或等价的 <span class="formula-inline">&Phi;(z) = 0</span> 根在单位圆外）。保证序列的均值、方差和自协方差不随时间变化。
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">可逆性条件（MA部分）</div>
+    <div class="card-body">
+      MA特征方程 <span class="formula-inline">&Theta;(&lambda;) = 0</span> 的所有根在单位圆内（或等价的 <span class="formula-inline">&Theta;(z) = 0</span> 根在单位圆外）。保证MA过程可表示为收敛的无穷阶AR过程。
+    </div>
+  </div>
+</div>
+
+<div class="callout">
+  <div class="callout-title">为什么要可逆性？</div>
+  <p>可逆性保证了MA(q)过程可以唯一地由当前和过去的观测值表示（即存在唯一的AR(&infin;)展开）。这确保了模型参数的可识别性，使得我们可以根据观测数据唯一估计出模型参数。</p>
+</div>
+
+<h3 class="sub-title" id="sec-3-4-3"><span class="sec-num">3.4.3</span> ACF和PACF：都是拖尾</h3>
+
+<p>ARMA(p,q)过程的ACF和PACF具有一个关键特征：<strong>两者都是拖尾的</strong>。</p>
+
+<ul style="margin: 0.75rem 0 1rem 1.5rem; color: var(--text-secondary);">
+  <li>AR(p)的ACF拖尾，PACF p阶截尾</li>
+  <li>MA(q)的ACF q阶截尾，PACF拖尾</li>
+  <li>ARMA(p,q)的ACF和PACF<strong>都拖尾</strong>（尾部被负指数控制）</li>
+</ul>
+
+<p>这意味着，当观测到ACF和PACF都呈现拖尾特征时，提示需要使用ARMA混合模型，而非单纯的AR或MA模型。</p>
+
+<!-- ARMA Chart -->
+<div class="chart-figure">
+  <div class="cf-title">ARMA(1,1)模型的ACF与PACF特征</div>
+  <div class="cf-subtitle">参数 &phi;<sub>1</sub> = 0.7, &theta;<sub>1</sub> = 0.4 | ACF和PACF均呈拖尾衰减</div>
+  <div id="chart-arma-acf" class="chart-container"></div>
+</div>
+
+<!-- Compare Grid -->
+<h3 class="sub-title"><span class="sec-num"></span>AR / MA / ARMA 特征对比</h3>
+
+<div class="compare-grid">
+  <div class="compare-card">
+    <div class="cc-name">AR(p)</div>
+    <div class="cc-item">
+      <strong>ACF</strong>
+      拖尾（指数/正弦衰减）
+    </div>
+    <div class="cc-item">
+      <strong>PACF</strong>
+      <span style="color: var(--accent); font-weight: 600;">p阶截尾</span>
+    </div>
+    <div class="cc-item">
+      <strong>定阶依据</strong>
+      PACF在p阶后截断
+    </div>
+  </div>
+  <div class="compare-card">
+    <div class="cc-name">MA(q)</div>
+    <div class="cc-item">
+      <strong>ACF</strong>
+      <span style="color: var(--accent); font-weight: 600;">q阶截尾</span>
+    </div>
+    <div class="cc-item">
+      <strong>PACF</strong>
+      拖尾（指数衰减）
+    </div>
+    <div class="cc-item">
+      <strong>定阶依据</strong>
+      ACF在q阶后截断
+    </div>
+  </div>
+  <div class="compare-card">
+    <div class="cc-name">ARMA(p,q)</div>
+    <div class="cc-item">
+      <strong>ACF</strong>
+      拖尾
+    </div>
+    <div class="cc-item">
+      <strong>PACF</strong>
+      拖尾
+    </div>
+    <div class="cc-item">
+      <strong>定阶依据</strong>
+      需结合AIC/BIC等信息准则
+    </div>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="summary-box" id="sec-summary">
+  <h3>Summary：ACF/PACF定阶表</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>模型</th>
+          <th>ACF特征</th>
+          <th>PACF特征</th>
+          <th>定阶方法</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>AR(p)</strong></td>
+          <td>拖尾</td>
+          <td><strong>p阶截尾</strong></td>
+          <td>PACF截尾阶数 = p</td>
+        </tr>
+        <tr>
+          <td><strong>MA(q)</strong></td>
+          <td><strong>q阶截尾</strong></td>
+          <td>拖尾</td>
+          <td>ACF截尾阶数 = q</td>
+        </tr>
+        <tr>
+          <td><strong>ARMA(p,q)</strong></td>
+          <td>拖尾</td>
+          <td>拖尾</td>
+          <td>AIC / BIC / 网格搜索</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:0.875rem; color: var(--text-muted); margin-top:0.75rem; margin-bottom:0;">
+    核心口诀：<strong>AR看PACF截尾，MA看ACF截尾，ARMA两者都拖尾用信息准则。</strong>
+  </p>
+</div>
+
+<!-- Financial Case -->
+<h3 class="sub-title"><span class="sec-num"></span>金融案例：ARMA在资产收益率建模中的应用</h3>
+
+<p>资产收益率序列通常表现出以下特征，使得ARMA模型成为自然的选择：</p>
+
+<ol class="step-list">
+  <li><strong>微弱自相关</strong>：收益率本身往往存在微弱的序列相关性，可用低阶AR项捕捉</li>
+  <li><strong>冲击效应</strong>：市场新闻和事件对收益率的冲击具有持续性，可用MA项描述</li>
+  <li><strong>混合动态</strong>：许多金融序列同时表现出AR和MA特征，ARMA模型提供了统一的建模框架</li>
+  <li><strong>预测应用</strong>：ARMA模型可用于短期收益率预测、风险价值(VaR)计算和期权定价</li>
+  <li><strong>扩展</strong>：在ARMA基础上引入GARCH结构（ARMA-GARCH），可同时建模条件均值和条件波动率</li>
+</ol>
+
+<div class="callout success">
+  <div class="callout-title">实践提示</div>
+  <p>在实际金融建模中，收益率序列往往需要使用ARMA(1,1)或低阶ARMA模型。例如，沪深300指数日收益率常被建模为ARMA(1,1)-GARCH(1,1)过程，其中ARMA部分捕捉条件均值的动态，GARCH部分捕捉波动率聚类特征。</p>
+</div>
+
+<!-- Footer / References -->
+<footer class="page-footer">
+  <h3>参考文献</h3>
+  <ol class="ref-list">
+    <li>Box, G. E. P., Jenkins, G. M., Reinsel, G. C., & Ljung, G. M. (2015). <em>Time Series Analysis: Forecasting and Control</em> (5th ed.). Wiley.</li>
+    <li>Brockwell, P. J., & Davis, R. A. (2016). <em>Introduction to Time Series and Forecasting</em> (3rd ed.). Springer.</li>
+    <li>Tsay, R. S. (2010). <em>Analysis of Financial Time Series</em> (3rd ed.). Wiley.</li>
+    <li>Shumway, R. H., & Stoffer, D. S. (2017). <em>Time Series Analysis and Its Applications: With R Examples</em> (4th ed.). Springer.</li>
+    <li>王燕. (2015). 《应用时间序列分析》 (第4版). 中国人民大学出版社.</li>
+  </ol>
+</footer>
+
+</main>
+</div>
+
+<!-- ==================== ECHARTS ==================== -->
+<script>
+// Common chart style
+const chartFont = { fontFamily: "'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" };
+const commonGrid = { left: '10%', right: '8%', top: '15%', bottom: '15%' };
+const lagLabels = Array.from({length: 16}, (_, i) => i);
+
+// ---------- AR(1) ACF & PACF ----------
+const chartAR = echarts.init(document.getElementById('chart-ar-acf'));
+const phi1 = 0.7;
+const arAcf = lagLabels.map(k => k === 0 ? 1 : Math.pow(phi1, k));
+const arPacf = lagLabels.map(k => k === 0 ? 1 : (k === 1 ? phi1 : 0));
+// Add small noise to pacf zeros for visibility
+const arPacfDisplay = arPacf.map((v, i) => i > 1 && v === 0 ? 0.02 * (Math.random() - 0.5) : v);
+
+chartAR.setOption({
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['ACF', 'PACF'], top: 0, textStyle: { fontSize: 12 } },
+  grid: [
+    { left: '8%', right: '4%', top: '18%', bottom: '8%', width: '40%' },
+    { left: '56%', right: '4%', top: '18%', bottom: '8%', width: '40%' }
+  ],
+  xAxis: [
+    { type: 'category', data: lagLabels, gridIndex: 0, name: '滞后阶数', nameLocation: 'middle', nameGap: 25, axisLine: { lineStyle: { color: '#9ca3af' } } },
+    { type: 'category', data: lagLabels, gridIndex: 1, name: '滞后阶数', nameLocation: 'middle', nameGap: 25, axisLine: { lineStyle: { color: '#9ca3af' } } }
+  ],
+  yAxis: [
+    { type: 'value', gridIndex: 0, min: -0.2, max: 1.1, axisLine: { lineStyle: { color: '#9ca3af' } }, splitLine: { lineStyle: { color: '#f3f4f6' } } },
+    { type: 'value', gridIndex: 1, min: -0.2, max: 1.1, axisLine: { lineStyle: { color: '#9ca3af' } }, splitLine: { lineStyle: { color: '#f3f4f6' } } }
+  ],
+  series: [
+    {
+      name: 'ACF', type: 'bar', xAxisIndex: 0, yAxisIndex: 0,
+      data: arAcf, itemStyle: { color: '#2563eb' }, barWidth: '60%',
+      markLine: { silent: true, data: [{ yAxis: 0, lineStyle: { color: '#6b7280', type: 'dashed' } }] }
+    },
+    {
+      name: 'PACF', type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
+      data: arPacfDisplay, itemStyle: { color: '#7c3aed' }, barWidth: '60%',
+      markLine: { silent: true, data: [{ yAxis: 0, lineStyle: { color: '#6b7280', type: 'dashed' } }] }
+    }
+  ]
+});
+
+// ---------- MA(1) ACF & PACF ----------
+const chartMA = echarts.init(document.getElementById('chart-ma-acf'));
+const theta1 = 0.6;
+const maAcf = lagLabels.map(k => {
+  if (k === 0) return 1;
+  if (k === 1) return -theta1 / (1 + theta1 * theta1);
+  return 0;
+});
+// MA(1) PACF: phi_kk = -(-theta1)^k / (1 + theta1^2 + ... + theta1^{2k})
+const maPacf = lagLabels.map(k => {
+  if (k === 0) return 1;
+  const num = -Math.pow(-theta1, k);
+  let den = 0;
+  for (let j = 0; j <= k; j++) den += Math.pow(theta1, 2*j);
+  return num / den;
+});
+
+chartMA.setOption({
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['ACF', 'PACF'], top: 0, textStyle: { fontSize: 12 } },
+  grid: [
+    { left: '8%', right: '4%', top: '18%', bottom: '8%', width: '40%' },
+    { left: '56%', right: '4%', top: '18%', bottom: '8%', width: '40%' }
+  ],
+  xAxis: [
+    { type: 'category', data: lagLabels, gridIndex: 0, name: '滞后阶数', nameLocation: 'middle', nameGap: 25, axisLine: { lineStyle: { color: '#9ca3af' } } },
+    { type: 'category', data: lagLabels, gridIndex: 1, name: '滞后阶数', nameLocation: 'middle', nameGap: 25, axisLine: { lineStyle: { color: '#9ca3af' } } }
+  ],
+  yAxis: [
+    { type: 'value', gridIndex: 0, min: -0.6, max: 1.1, axisLine: { lineStyle: { color: '#9ca3af' } }, splitLine: { lineStyle: { color: '#f3f4f6' } } },
+    { type: 'value', gridIndex: 1, min: -0.6, max: 1.1, axisLine: { lineStyle: { color: '#9ca3af' } }, splitLine: { lineStyle: { color: '#f3f4f6' } } }
+  ],
+  series: [
+    {
+      name: 'ACF', type: 'bar', xAxisIndex: 0, yAxisIndex: 0,
+      data: maAcf, itemStyle: { color: '#2563eb' }, barWidth: '60%',
+      markLine: { silent: true, data: [{ yAxis: 0, lineStyle: { color: '#6b7280', type: 'dashed' } }] }
+    },
+    {
+      name: 'PACF', type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
+      data: maPacf, itemStyle: { color: '#7c3aed' }, barWidth: '60%',
+      markLine: { silent: true, data: [{ yAxis: 0, lineStyle: { color: '#6b7280', type: 'dashed' } }] }
+    }
+  ]
+});
+
+// ---------- ARMA(1,1) ACF & PACF ----------
+const chartARMA = echarts.init(document.getElementById('chart-arma-acf'));
+const phi_arma = 0.7, theta_arma = 0.4;
+const sigma2 = 1;
+
+// ARMA(1,1) theoretical ACF
+const gamma0_arma = sigma2 * (1 + theta_arma*theta_arma - 2*phi_arma*theta_arma) / (1 - phi_arma*phi_arma);
+const gamma1_arma = sigma2 * ((1 - phi_arma*theta_arma)*(phi_arma - theta_arma)) / (1 - phi_arma*phi_arma);
+const armaAcf = lagLabels.map(k => {
+  if (k === 0) return 1;
+  if (k === 1) return gamma1_arma / gamma0_arma;
+  return phi_arma * armaAcf[k-1];
+});
+
+// ARMA(1,1) PACF approximated by Yule-Walker
+const armaPacf = lagLabels.map(k => {
+  if (k === 0) return 1;
+  // Use Levinson-Durbin style approximation
+  const r = armaAcf.slice(0, k+1);
+  let phi = [r[1]];
+  if (k === 1) return phi[0];
+  for (let n = 2; n <= k; n++) {
+    let num = r[n];
+    for (let j = 1; j < n; j++) num -= phi[j-1] * r[n-j];
+    let den = 1;
+    for (let j = 1; j < n; j++) den -= phi[j-1] * r[j];
+    const phi_nn = num / den;
+    const newPhi = new Array(n);
+    for (let j = 1; j < n; j++) newPhi[j-1] = phi[j-1] - phi_nn * phi[n-j-1];
+    newPhi[n-1] = phi_nn;
+    phi = newPhi;
+  }
+  return phi[k-1];
+});
+
+chartARMA.setOption({
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['ACF', 'PACF'], top: 0, textStyle: { fontSize: 12 } },
+  grid: [
+    { left: '8%', right: '4%', top: '18%', bottom: '8%', width: '40%' },
+    { left: '56%', right: '4%', top: '18%', bottom: '8%', width: '40%' }
+  ],
+  xAxis: [
+    { type: 'category', data: lagLabels, gridIndex: 0, name: '滞后阶数', nameLocation: 'middle', nameGap: 25, axisLine: { lineStyle: { color: '#9ca3af' } } },
+    { type: 'category', data: lagLabels, gridIndex: 1, name: '滞后阶数', nameLocation: 'middle', nameGap: 25, axisLine: { lineStyle: { color: '#9ca3af' } } }
+  ],
+  yAxis: [
+    { type: 'value', gridIndex: 0, min: -0.3, max: 1.1, axisLine: { lineStyle: { color: '#9ca3af' } }, splitLine: { lineStyle: { color: '#f3f4f6' } } },
+    { type: 'value', gridIndex: 1, min: -0.3, max: 1.1, axisLine: { lineStyle: { color: '#9ca3af' } }, splitLine: { lineStyle: { color: '#f3f4f6' } } }
+  ],
+  series: [
+    {
+      name: 'ACF', type: 'bar', xAxisIndex: 0, yAxisIndex: 0,
+      data: armaAcf, itemStyle: { color: '#2563eb' }, barWidth: '60%',
+      markLine: { silent: true, data: [{ yAxis: 0, lineStyle: { color: '#6b7280', type: 'dashed' } }] }
+    },
+    {
+      name: 'PACF', type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
+      data: armaPacf, itemStyle: { color: '#7c3aed' }, barWidth: '60%',
+      markLine: { silent: true, data: [{ yAxis: 0, lineStyle: { color: '#6b7280', type: 'dashed' } }] }
+    }
+  ]
+});
+
+// Resize handler
+window.addEventListener('resize', () => {
+  chartAR.resize();
+  chartMA.resize();
+  chartARMA.resize();
+});
+
+// TOC Active State
+const tocLinks = document.querySelectorAll('.toc-list a');
+const sections = document.querySelectorAll('[id]');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(sec => {
+    const rect = sec.getBoundingClientRect();
+    if (rect.top <= 120) current = sec.id;
+  });
+  tocLinks.forEach(link => {
+    link.classList.toggle('active', link.getAttribute('href') === '#' + current);
+  });
+});
+</script>
+
+</body>
+</html>

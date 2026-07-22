@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第4章 非平稳序列的确定性分析 | 应用时间序列分析</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ─── CSS Variables ─── */
+:root {
+  --accent: #4338ca;
+  --accent2: #059669;
+  --accent-light: #eef2ff;
+  --accent-dark: #312e81;
+  --text: #1e293b;
+  --text-secondary: #64748b;
+  --bg: #ffffff;
+  --bg-secondary: #f8fafc;
+  --border: #e2e8f0;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.05);
+  --font-sans: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Noto Serif SC', Georgia, serif;
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── Reset & Base ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.75;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Layout ─── */
+.page-wrap { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  padding: 2rem 1.5rem;
+  z-index: 50;
+}
+.main { flex: 1; min-width: 0; }
+.content { max-width: 820px; margin: 0 auto; padding: 0 2rem 4rem; }
+
+/* ─── Sidebar ─── */
+.sidebar-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+  line-height: 1.4;
+}
+.sidebar-sub {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  display: block;
+}
+.toc-nav ul { list-style: none; }
+.toc-nav li { margin: 0.15rem 0; }
+.toc-nav a {
+  display: block;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.88rem;
+  transition: var(--transition);
+  border-left: 3px solid transparent;
+}
+.toc-nav a:hover { background: var(--accent-light); color: var(--accent); }
+.toc-nav a.active { background: var(--accent-light); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.toc-nav .toc-h2 { padding-left: 1.2rem; font-size: 0.85rem; }
+.toc-divider { height: 1px; background: var(--border); margin: 1rem 0; }
+
+/* ─── Hero ─── */
+.hero {
+  background: linear-gradient(135deg, #4338ca 0%, #059669 50%, #1e3a5f 100%);
+  color: #fff;
+  padding: 5rem 2rem 4rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 30%, rgba(255,255,255,0.08) 0%, transparent 50%),
+              radial-gradient(circle at 80% 70%, rgba(255,255,255,0.06) 0%, transparent 50%);
+}
+.hero-inner { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; }
+.hero-badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 0.35rem 1rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-bottom: 1.25rem;
+  letter-spacing: 0.05em;
+}
+.hero h1 {
+  font-family: var(--font-serif);
+  font-size: 2.4rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  line-height: 1.25;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.15);
+}
+.hero p {
+  font-size: 1.1rem;
+  opacity: 0.92;
+  max-width: 560px;
+  margin: 0 auto;
+  font-weight: 300;
+}
+
+/* ─── Typography ─── */
+h2.section-title {
+  font-family: var(--font-serif);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent-dark);
+  margin: 3rem 0 1.25rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid var(--accent-light);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+h2.section-title .num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-family: var(--font-sans);
+  font-weight: 700;
+}
+h3.sub-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 2rem 0 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+h3.sub-title::before {
+  content: '';
+  display: block;
+  width: 5px;
+  height: 22px;
+  background: var(--accent2);
+  border-radius: 3px;
+}
+p { margin-bottom: 1rem; color: var(--text); }
+strong { color: var(--accent-dark); font-weight: 600; }
+
+/* ─── Callout ─── */
+.callout {
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+  border-left: 4px solid var(--accent);
+  background: var(--accent-light);
+  position: relative;
+}
+.callout.info { border-left-color: var(--accent); background: #eef2ff; }
+.callout.tip { border-left-color: var(--accent2); background: #ecfdf5; }
+.callout.warn { border-left-color: #d97706; background: #fffbeb; }
+.callout-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.callout p:last-child { margin-bottom: 0; }
+
+/* ─── Card Grid ─── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+  margin: 1.5rem 0;
+}
+.card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  transition: var(--transition);
+  box-shadow: var(--shadow);
+}
+.card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: #c7d2fe; }
+.card h4 { font-size: 1.05rem; color: var(--accent); margin-bottom: 0.5rem; }
+.card p { font-size: 0.92rem; color: var(--text-secondary); margin: 0; }
+.card .icon { font-size: 1.6rem; margin-bottom: 0.5rem; display: block; }
+
+/* ─── Formula ─── */
+.formula-block {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin: 1.25rem 0;
+  text-align: center;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 1.15rem;
+  color: var(--text);
+  position: relative;
+  overflow-x: auto;
+}
+.formula-block .label {
+  position: absolute;
+  right: 1rem;
+  top: 0.6rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  background: var(--bg);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.formula-inline {
+  background: var(--bg-secondary);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 1.05em;
+  border: 1px solid var(--border);
+}
+
+/* ─── Figures ─── */
+.chart-figure, .diagram-figure {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow);
+}
+.chart-figure .fig-title, .diagram-figure .fig-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+.chart-figure .fig-caption, .diagram-figure .fig-caption {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 0.75rem;
+  font-style: italic;
+}
+.chart-container { width: 100%; height: 380px; }
+.chart-container.small { height: 280px; }
+
+/* ─── Step List ─── */
+.step-list { list-style: none; counter-reset: step; margin: 1.5rem 0; }
+.step-list > li {
+  position: relative;
+  padding-left: 3rem;
+  padding-bottom: 1.5rem;
+  border-left: 2px solid var(--border);
+  margin-left: 1rem;
+}
+.step-list > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+.step-list > li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: -1rem;
+  top: 0;
+  width: 2rem;
+  height: 2rem;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  box-shadow: 0 0 0 4px var(--bg);
+}
+.step-list h4 { font-size: 1rem; color: var(--accent-dark); margin-bottom: 0.35rem; }
+.step-list p { font-size: 0.92rem; color: var(--text-secondary); margin: 0; }
+
+/* ─── Table ─── */
+.table-wrap { overflow-x: auto; margin: 1.5rem 0; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th, td { padding: 0.75rem 1rem; text-align: center; border-bottom: 1px solid var(--border); }
+thead th { background: var(--accent-light); color: var(--accent-dark); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+tbody tr:hover { background: #f8fafc; }
+tbody tr:last-child td { border-bottom: none; }
+
+/* ─── Mermaid ─── */
+.mermaid { display: flex; justify-content: center; }
+
+/* ─── Summary Box ─── */
+.summary-box {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ecfdf5 100%);
+  border: 1px solid #c7d2fe;
+  border-radius: var(--radius);
+  padding: 2rem;
+  margin: 2rem 0;
+}
+.summary-box h3 { color: var(--accent-dark); margin-bottom: 1rem; font-size: 1.2rem; }
+
+/* ─── Footer ─── */
+.page-footer {
+  border-top: 1px solid var(--border);
+  padding: 2.5rem 2rem;
+  background: var(--bg-secondary);
+  margin-top: 3rem;
+}
+.footer-inner { max-width: 820px; margin: 0 auto; }
+.footer-title { font-size: 0.9rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.footer-refs { list-style: none; }
+.footer-refs li { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; padding-left: 1.2rem; position: relative; }
+.footer-refs li::before { content: '[' attr(data-idx) ']'; position: absolute; left: 0; color: var(--accent); font-weight: 600; }
+
+/* ─── Responsive ─── */
+@media (max-width: 1024px) {
+  .sidebar { display: none; }
+  .content { padding: 0 1.25rem 3rem; }
+  .hero { padding: 3.5rem 1.25rem 3rem; }
+  .hero h1 { font-size: 1.85rem; }
+}
+@media (max-width: 640px) {
+  .card-grid { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 1.55rem; }
+  .chart-container { height: 300px; }
+}
+
+/* ─── Utilities ─── */
+.text-accent { color: var(--accent); }
+.text-accent2 { color: var(--accent2); }
+.mb-0 { margin-bottom: 0 !important; }
+.mt-2 { margin-top: 1.5rem !important; }
+</style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+<!-- ─── Sidebar TOC ─── -->
+<aside class="sidebar">
+  <div class="sidebar-title">应用时间序列分析</div>
+  <span class="sidebar-sub">金融工程专业核心课程</span>
+  <nav class="toc-nav">
+    <ul>
+      <li><a href="#sec-4-1">4.1 时间序列的分解</a></li>
+      <li><a href="#sec-4-1-1" class="toc-h2">4.1.1 Wold分解定理</a></li>
+      <li><a href="#sec-4-1-2" class="toc-h2">4.1.2 Cramer分解定理</a></li>
+      <li><a href="#sec-4-2">4.2 确定性因素分解</a></li>
+      <li><a href="#sec-4-3">4.3 趋势分析</a></li>
+      <li><a href="#sec-4-3-1" class="toc-h2">4.3.1 趋势拟合法</a></li>
+      <li><a href="#sec-4-3-2" class="toc-h2">4.3.2 平滑法</a></li>
+      <li><a href="#sec-4-4">4.4 季节效应分析</a></li>
+      <li><a href="#sec-4-5">4.5 X-11过程简介</a></li>
+      <li><a href="#sec-summary">本章小结</a></li>
+    </ul>
+  </nav>
+</aside>
+
+<!-- ─── Main Content ─── -->
+<main class="main">
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">Chapter 04</div>
+    <h1>非平稳序列的确定性分析</h1>
+    <p>趋势分析、季节效应与经典分解方法：从Wold到X-11，掌握非平稳时间序列的确定性因素提取与建模框架。</p>
+  </div>
+</section>
+
+<div class="content">
+
+<!-- ════════════════════════════════════════
+     Section 4.1 时间序列的分解
+     ════════════════════════════════════════ -->
+<h2 id="sec-4-1" class="section-title"><span class="num">4.1</span>时间序列的分解</h2>
+
+<p>在实际金融与经济数据分析中，绝大多数原始时间序列都是<strong>非平稳的</strong>。直接对非平稳序列建模往往会导致伪回归（Spurious Regression）问题。因此，首要任务是将序列中的各类确定性成分分离出来，以便对剩余的平稳随机成分进行进一步建模。</p>
+
+<h3 id="sec-4-1-1" class="sub-title">4.1.1 Wold分解定理（回顾）</h3>
+
+<p>在第三章中，我们已经学习了<strong>Wold分解定理</strong>。该定理指出：任何协方差平稳的纯非确定性随机过程，都可以表示为一组白噪声序列的无穷阶线性组合：</p>
+
+<div class="formula-block">
+  <span class="label">Wold分解</span>
+  x<sub>t</sub> = &mu; + &sum;<sub>j=0</sub><sup>&infin;</sup> &psi;<sub>j</sub> &varepsilon;<sub>t-j</sub>, &nbsp;&nbsp; &psi;<sub>0</sub> = 1, &nbsp; &sum;<sub>j=0</sub><sup>&infin;</sup> &psi;<sub>j</sub><sup>2</sup> &lt; &infin;
+</div>
+
+<p>然而，Wold分解的适用范围仅限于<strong>平稳序列</strong>。对于含有确定性趋势或季节效应的非平稳序列，我们需要更一般的分解框架。</p>
+
+<div class="callout info">
+  <div class="callout-title">关键洞察</div>
+  <p>Wold分解处理的是平稳随机成分；对于现实中的GDP、股价指数、零售额等金融经济序列，必须先提取趋势与季节等确定性成分，剩余部分才可能满足Wold分解的条件。</p>
+</div>
+
+<h3 id="sec-4-1-2" class="sub-title">4.1.2 Cramer分解定理</h3>
+
+<p><strong>Cramer分解定理</strong>将Wold分解推广到非平稳情形，奠定了确定性分析的理论基础：</p>
+
+<div class="formula-block">
+  <span class="label">Cramer分解</span>
+  任何时间序列 {x<sub>t</sub>} 都可以分解为 <strong>确定性成分</strong> D<sub>t</sub> 与 <strong>随机性成分</strong> R<sub>t</sub> 之和：
+  <br><br>
+  x<sub>t</sub> = D<sub>t</sub> + R<sub>t</sub>
+</div>
+
+<p>其中，确定性成分 D<sub>t</sub> 可由过去的观测精确预测，而随机性成分 R<sub>t</sub> 服从Wold分解。进一步地，在实际应用中，确定性成分通常被细化为以下四个子成分：</p>
+
+<div class="formula-block">
+  <span class="label">经典分解式</span>
+  x<sub>t</sub> = T<sub>t</sub> + S<sub>t</sub> + C<sub>t</sub> + I<sub>t</sub>
+</div>
+
+<div class="card-grid">
+  <div class="card">
+    <span class="icon">&#128200;</span>
+    <h4>T<sub>t</sub>：趋势成分</h4>
+    <p>序列在长期中呈现的持续上升、下降或平稳的系统性变化方向。</p>
+  </div>
+  <div class="card">
+    <span class="icon">&#128197;</span>
+    <h4>S<sub>t</sub>：季节成分</h4>
+    <p>由季节性因素（如季度、月份）引起的固定周期波动，周期通常小于一年。</p>
+  </div>
+  <div class="card">
+    <span class="icon">&#128260;</span>
+    <h4>C<sub>t</sub>：循环成分</h4>
+    <p>周期大于一年的反复波动，如经济周期中的繁荣—衰退—萧条—复苏。</p>
+  </div>
+  <div class="card">
+    <span class="icon">&#128300;</span>
+    <h4>I<sub>t</sub>：不规则成分</h4>
+    <p>除上述三者外的随机扰动，通常假设为白噪声或平稳序列。</p>
+  </div>
+</div>
+
+<p>在金融数据分析中，由于循环成分 C<sub>t</sub> 与趋势成分 T<sub>t</sub> 往往难以清晰区分，且循环周期不固定，因此常将二者合并处理，简化为 <strong>趋势—季节—不规则</strong> 的三因素分解。</p>
+
+<!-- ════════════════════════════════════════
+     Section 4.2 确定性因素分解
+     ════════════════════════════════════════ -->
+<h2 id="sec-4-2" class="section-title"><span class="num">4.2</span>确定性因素分解</h2>
+
+<p>根据各因素之间相互作用方式的不同，经典的确定性分解模型主要分为<strong>加法模型</strong>与<strong>乘法模型</strong>两种形式。</p>
+
+<h3 class="sub-title">加法模型</h3>
+
+<p>当季节波动的幅度不随趋势水平的变化而改变时，适用加法模型：</p>
+
+<div class="formula-block">
+  <span class="label">Additive Model</span>
+  x<sub>t</sub> = T<sub>t</sub> + S<sub>t</sub> + I<sub>t</sub>
+</div>
+
+<p>在加法模型中，各成分以绝对量的形式叠加。季节效应 S<sub>t</sub> 满足 <span class="formula-inline">&sum; S<sub>t</sub> = 0</span>（在一个完整周期内），不规则成分 I<sub>t</sub> 的期望为 0。该模型适用于金融数据中波动幅度相对稳定的序列，如某些利率序列的短期分析。</p>
+
+<h3 class="sub-title">乘法模型</h3>
+
+<p>当季节波动的幅度随趋势水平的提高而按比例扩大时，适用乘法模型：</p>
+
+<div class="formula-block">
+  <span class="label">Multiplicative Model</span>
+  x<sub>t</sub> = T<sub>t</sub> &times; S<sub>t</sub> &times; I<sub>t</sub>
+</div>
+
+<p>在乘法模型中，季节效应以相对比例的形式作用于序列。此时季节指数满足 <span class="formula-inline">&prod; S<sub>t</sub> = 1</span> 或 <span class="formula-inline">&sum; S<sub>t</sub> = m</span>（m为周期长度，采用中心化指数形式）。乘法模型在金融经济领域更为常见，例如零售销售额、旅游收入等序列，其季节性波动的绝对金额往往随经济总量的增长而扩大。</p>
+
+<div class="callout tip">
+  <div class="callout-title">技巧：对数变换</div>
+  <p>对乘法模型两边取对数，可将乘法关系转化为加法关系：</p>
+  <p style="text-align:center; font-family:'Times New Roman',serif; font-size:1.1rem; margin-top:0.5rem;">ln(x<sub>t</sub>) = ln(T<sub>t</sub>) + ln(S<sub>t</sub>) + ln(I<sub>t</sub>)</p>
+  <p style="margin-top:0.5rem;">这一技巧在实证分析中非常实用，使得我们可用加法分解的工具处理原本符合乘法特征的序列。</p>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>特征</th><th>加法模型</th><th>乘法模型</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>数学形式</td><td>x<sub>t</sub> = T<sub>t</sub> + S<sub>t</sub> + I<sub>t</sub></td><td>x<sub>t</sub> = T<sub>t</sub> &times; S<sub>t</sub> &times; I<sub>t</sub></td></tr>
+      <tr><td>季节波动幅度</td><td>恒定不变</td><td>与趋势水平成比例</td></tr>
+      <tr><td>季节指数约束</td><td>&sum;S<sub>t</sub> = 0</td><td>&prod;S<sub>t</sub> = 1</td></tr>
+      <tr><td>适用场景</td><td>波动幅度稳定</td><td>波动幅度随趋势增长</td></tr>
+      <tr><td>金融案例</td><td>短期利率残差</td><td>GDP、零售额、股价成交量</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════════════════════════════════════════
+     Section 4.3 趋势分析
+     ════════════════════════════════════════ -->
+<h2 id="sec-4-3" class="section-title"><span class="num">4.3</span>趋势分析</h2>
+
+<p>趋势提取是确定性分析的核心环节。本节介绍两类经典方法：<strong>趋势拟合法</strong>（参数方法）与<strong>平滑法</strong>（非参数/半参数方法）。</p>
+
+<h3 id="sec-4-3-1" class="sub-title">4.3.1 趋势拟合法</h3>
+
+<p>趋势拟合法假设趋势成分可以用一个明确的数学函数来刻画，通过估计函数参数得到趋势序列 <span class="formula-inline">T&#770;<sub>t</sub></span>。</p>
+
+<h4>线性趋势（最小二乘法）</h4>
+<p>当序列呈现近似直线的长期走向时，可设定线性趋势模型：</p>
+
+<div class="formula-block">
+  <span class="label">Linear Trend</span>
+  T<sub>t</sub> = a + b &middot; t + &epsilon;<sub>t</sub>
+</div>
+
+<p>利用普通最小二乘法（OLS）估计参数 <span class="formula-inline">a</span> 与 <span class="formula-inline">b</span>：</p>
+
+<div class="formula-block">
+  <span class="label">OLS Estimators</span>
+  b&#770; = <span style="display:inline-block;vertical-align:middle;text-align:center;"><span style="border-bottom:1px solid;">&sum;(t - t&#772;)(x<sub>t</sub> - x&#772;)</span><br><span>&sum;(t - t&#772;)<sup>2</sup></span></span>, &nbsp;&nbsp;
+  a&#770; = x&#772; - b&#770; &middot; t&#772;
+</div>
+
+<h4>曲线趋势</h4>
+<p>当趋势呈现加速增长或减速增长特征时，需要引入非线性函数形式：</p>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>二次趋势</h4>
+    <p style="font-family:'Times New Roman',serif; font-size:1.05rem; color:var(--text); margin-bottom:0.5rem;">T<sub>t</sub> = a + bt + ct<sup>2</sup></p>
+    <p>适用于存在单一拐点（加速或减速）的经济增长序列。</p>
+  </div>
+  <div class="card">
+    <h4>指数趋势</h4>
+    <p style="font-family:'Times New Roman',serif; font-size:1.05rem; color:var(--text); margin-bottom:0.5rem;">T<sub>t</sub> = a &middot; e<sup>bt</sup></p>
+    <p>适用于以固定增长率持续扩张的序列，如复利增长的投资收益。</p>
+  </div>
+</div>
+
+<div class="chart-figure">
+  <div class="fig-title">图 4-1 线性趋势拟合 vs 指数趋势拟合对比</div>
+  <div id="chart-trend-fit" class="chart-container"></div>
+  <div class="fig-caption">模拟数据：黑色散点为原始序列，蓝色实线为线性OLS拟合，绿色虚线为指数拟合。指数模型在后期更好地捕捉了加速增长特征。</div>
+</div>
+
+<h3 id="sec-4-3-2" class="sub-title">4.3.2 平滑法</h3>
+
+<p>平滑法不预设趋势的具体函数形式，而是通过局部加权平均的方式提取趋势，具有更强的灵活性。</p>
+
+<h4>移动平均法（Moving Average）</h4>
+<p>对相邻的 <span class="formula-inline">k</span> 期观测值取算术平均，以消除短期不规则波动：</p>
+
+<div class="formula-block">
+  <span class="label">Simple MA</span>
+  T&#772;<sub>t</sub> = <span style="display:inline-block;vertical-align:middle;text-align:center;"><span style="border-bottom:1px solid;">1</span><br><span>k</span></span> &sum;<sub>i=-(k-1)/2</sub><sup>(k-1)/2</sup> x<sub>t+i</sub> , &nbsp;&nbsp; k 为奇数
+</div>
+
+<p>在金融市场中，<strong>k期均线</strong>（如5日均线、20日均线、60日均线）是移动平均法最直接的应用。短期均线对价格变化反应灵敏，长期均线则更好地反映中长期趋势方向。</p>
+
+<h4>指数平滑法（Exponential Smoothing）</h4>
+<p>指数平滑法对近期的观测值赋予更大的权重，权重按指数速度递减：</p>
+
+<div class="formula-block">
+  <span class="label">Single Exp. Smoothing</span>
+  T&#772;<sub>t</sub> = &alpha; x<sub>t</sub> + (1-&alpha;) T&#772;<sub>t-1</sub> = &sum;<sub>j=0</sub><sup>&infin;</sup> &alpha;(1-&alpha;)<sup>j</sup> x<sub>t-j</sub>
+</div>
+
+<p>其中平滑参数 <span class="formula-inline">&alpha; &isin; (0,1)</span> 控制衰减速度。<span class="formula-inline">&alpha;</span> 越接近 1，对近期变化越敏感；<span class="formula-inline">&alpha;</span> 越接近 0，平滑效果越强。</p>
+
+<h4>Holt线性趋势法</h4>
+<p>对于含有线性趋势的序列，一次指数平滑会产生滞后偏差。Holt法引入趋势项进行修正：</p>
+
+<div class="formula-block">
+  <span class="label">Holt's Method</span>
+  水平项：&ell;<sub>t</sub> = &alpha; x<sub>t</sub> + (1-&alpha;)(&ell;<sub>t-1</sub> + b<sub>t-1</sub>)<br>
+  趋势项：b<sub>t</sub> = &beta;(&ell;<sub>t</sub> - &ell;<sub>t-1</sub>) + (1-&beta;) b<sub>t-1</sub><br>
+  预测：T&#772;<sub>t+h</sub> = &ell;<sub>t</sub> + b<sub>t</sub> &middot; h
+</div>
+
+<div class="callout info">
+  <div class="callout-title">金融案例：股价均线分析</div>
+  <p>在技术分析中，<strong>金叉</strong>（短期均线上穿长期均线）与<strong>死叉</strong>（短期均线下穿长期均线）被广泛用于判断趋势转折。例如，当5日均线上穿20日均线时，被视为短期趋势转强的信号；反之则为走弱信号。但需注意，均线策略在震荡行情中容易产生虚假信号。</p>
+</div>
+
+<h4>趋势提取的建模步骤</h4>
+<ol class="step-list">
+  <li>
+    <h4>序列可视化与初步判断</h4>
+    <p>绘制时序图，观察是否存在明显的长期走向（上升/下降/水平），判断趋势形态（线性/非线性）。</p>
+  </li>
+  <li>
+    <h4>选择趋势提取方法</h4>
+    <p>若趋势形态清晰且稳定，选用参数拟合法（OLS）；若趋势形态复杂或可能变化，选用平滑法（移动平均或指数平滑）。</p>
+  </li>
+  <li>
+    <h4>参数估计与模型拟合</h4>
+    <p>对拟合法估计回归系数；对平滑法通过交叉验证或信息准则选择最优平滑参数。</p>
+  </li>
+  <li>
+    <h4>提取趋势并计算残差</h4>
+    <p>获得趋势估计值 <span class="formula-inline">T&#770;<sub>t</sub></span> 后，计算残差序列 <span class="formula-inline">e<sub>t</sub> = x<sub>t</sub> - T&#770;<sub>t</sub></span>（加法模型）或 <span class="formula-inline">e<sub>t</sub> = x<sub>t</sub> / T&#770;<sub>t</sub></span>（乘法模型）。</p>
+  </li>
+  <li>
+    <h4>残差诊断</h4>
+    <p>检验残差序列是否平稳、是否存在自相关、是否仍含季节成分，以判断趋势提取是否充分。</p>
+  </li>
+</ol>
+
+<div class="callout warn">
+  <div class="callout-title">注意：过度拟合风险</div>
+  <p>高阶多项式拟合或过小窗口的移动平均可能将随机噪声误认为趋势，导致过度拟合。在实际金融建模中，建议结合业务逻辑（如经济增长理论）与统计检验（如ADF检验）综合判断趋势提取的效果。</p>
+</div>
+
+<!-- ════════════════════════════════════════
+     Section 4.4 季节效应分析
+     ════════════════════════════════════════ -->
+<h2 id="sec-4-4" class="section-title"><span class="num">4.4</span>季节效应分析</h2>
+
+<p>季节效应是金融经济时间序列中最常见的确定性成分之一。许多经济活动受自然条件（如气候）、制度安排（如节假日、财政年度）或社会习惯（如消费习惯）的影响，呈现出固定的年内周期性波动。</p>
+
+<h3 class="sub-title">季节指数的概念与计算</h3>
+
+<p><strong>季节指数（Seasonal Index）</strong>用于量化各时期相对于全年平均水平的波动程度。以月度数据为例，季节指数反映了该月份相对于年平均的典型偏离幅度。</p>
+
+<p>计算步骤（以加法模型为例）：</p>
+<ol style="margin: 1rem 0 1rem 1.5rem; color: var(--text);">
+  <li>计算历年同月的平均值 <span class="formula-inline">A<sub>i</sub></span>（i = 1,...,12）；</li>
+  <li>计算所有月份的总平均值 <span class="formula-inline">A&#772;</span>；</li>
+  <li>季节指数 <span class="formula-inline">S<sub>i</sub> = A<sub>i</sub> - A&#772;</span>（加法）或 <span class="formula-inline">S<sub>i</sub> = A<sub>i</sub> / A&#772;</span>（乘法）。</li>
+</ol>
+
+<p>对于乘法模型的中心化季节指数，还需进行正规化处理，确保 <span class="formula-inline">&prod;S<sub>i</sub> = 1</span> 或 <span class="formula-inline">&sum;S<sub>i</sub> = 12</span>。</p>
+
+<div class="chart-figure">
+  <div class="fig-title">图 4-2 带季节效应的时间序列及其季节指数</div>
+  <div id="chart-seasonal" class="chart-container"></div>
+  <div class="fig-caption">上图为模拟月度序列（含趋势与季节效应），下图为对应的12个月季节指数。6-8月为旺季（指数>1），1-2月为淡季（指数<1）。</div>
+</div>
+
+<h3 class="sub-title">季节调整方法</h3>
+
+<p><strong>季节调整（Seasonal Adjustment）</strong>是指从原始序列中剔除季节效应，得到<strong>季节调整后的序列（SA序列）</strong>，以便更清晰地观察趋势与循环变动。</p>
+
+<div class="formula-block">
+  <span class="label">Seasonal Adjustment</span>
+  加法：x<sub>t</sub><sup>SA</sup> = x<sub>t</sub> - S<sub>t</sub> = T<sub>t</sub> + I<sub>t</sub><br>
+  乘法：x<sub>t</sub><sup>SA</sup> = x<sub>t</sub> / S<sub>t</sub> = T<sub>t</sub> &times; I<sub>t</sub>
+</div>
+
+<p>季节调整后的序列消除了固定周期波动，使得不同月份之间的数据具有可比性，是宏观经济分析与金融决策的重要依据。</p>
+
+<div class="callout tip">
+  <div class="callout-title">金融案例：零售销售额的季节波动</div>
+  <p>中国社会消费品零售总额呈现出显著的季节性：每年1-2月受春节消费拉动出现高峰，6月受电商促销活动（618）影响出现次高峰，而节后月份通常回落。进行季节调整后，才能准确判断消费的真实增长趋势，避免将季节性高峰误判为经济过热。</p>
+</div>
+
+<div class="callout info">
+  <div class="callout-title">金融案例：旅游行业的季节性</div>
+  <p>航空客运量、酒店入住率、景区门票收入等旅游相关行业指标具有极强的季节性。以航空业为例，暑期（7-8月）与黄金周（春节、国庆）为传统旺季，航班客座率显著高于淡季。投资者在分析旅游类上市公司财报时，必须将同比（与上年同期比）优于环比（与上月比）作为核心比较基准，以剔除季节因素的干扰。</p>
+</div>
+
+<!-- ════════════════════════════════════════
+     Section 4.5 X-11过程简介
+     ════════════════════════════════════════ -->
+<h2 id="sec-4-5" class="section-title"><span class="num">4.5</span>X-11过程简介</h2>
+
+<p>X-11是由<strong>美国普查局（U.S. Census Bureau）</strong>开发的季节调整程序，最早于1965年发布，后经多次改进（X-11-ARIMA、X-12-ARIMA、X-13ARIMA-SEATS），至今仍是世界各国官方统计机构广泛使用的季节调整标准工具。</p>
+
+<h3 class="sub-title">X-11的核心思想</h3>
+
+<p>X-11基于<strong>移动平均法的迭代分解</strong>，通过多轮反复提取与修正趋势和季节成分，逐步逼近最优分解结果。其核心流程可概括为：</p>
+
+<ol class="step-list">
+  <li>
+    <h4>第一步：初步趋势估计</h4>
+    <p>利用中心化移动平均从原始序列中提取初步趋势—循环估计 <span class="formula-inline">TC<sup>(1)</sup></span>。</p>
+  </li>
+  <li>
+    <h4>第二步：初步季节估计</h4>
+    <p>计算剔除初步趋势后的序列 <span class="formula-inline">x / TC<sup>(1)</sup></span>（乘法模型），通过跨期平均提取初步季节成分 <span class="formula-inline">S<sup>(1)</sup></span>，并进行平滑修正。</p>
+  </li>
+  <li>
+    <h4>第三步：初步调整与再估计</h4>
+    <p>用初步季节成分调整原始序列，得到季节调整后的序列，再从中提取更精确的趋势估计 <span class="formula-inline">TC<sup>(2)</sup></span>。</p>
+  </li>
+  <li>
+    <h4>第四步：迭代精炼</h4>
+    <p>重复上述过程，对极端值（离群点）进行识别与修正，不断精炼季节成分与趋势成分，直至各成分达到稳定。</p>
+  </li>
+  <li>
+    <h4>第五步：输出最终结果</h4>
+    <p>输出最终的季节调整序列、趋势—循环序列、季节因子序列及不规则成分序列，并提供各类诊断统计量。</p>
+  </li>
+</ol>
+
+<div class="chart-figure">
+  <div class="fig-title">图 4-3 加法分解图：原始序列、趋势、季节、残差</div>
+  <div id="chart-decomposition" class="chart-container" style="height:520px;"></div>
+  <div class="fig-caption">四合一分解图展示了加法模型下各成分的关系。原始序列（左上）= 趋势（右上）+ 季节效应（左下）+ 残差（右下）。</div>
+</div>
+
+<div class="callout info">
+  <div class="callout-title">X-11的广泛应用</div>
+  <p>美国劳工部的非农就业数据、中国国家统计局公布的规模以上工业增加值、欧盟的HICP通胀数据等，均采用X-11或其改进版本进行季节调整。金融市场中，交易员高度关注这些经季节调整后的经济指标，因为它们更能反映经济的真实运行状况。</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title">X-11的局限性</div>
+  <p>X-11本质上是一种基于经验规则的算法，而非统计模型。它无法提供参数估计的标准误，也难以直接进行假设检验。此外，对于含有结构性断点或大幅异常值的序列（如2020年新冠疫情期间的多数经济指标），X-11的自动调整效果可能不理想，需要人工干预或结合ARIMA建模（X-13ARIMA-SEATS）进行预处理。</p>
+</div>
+
+<!-- ════════════════════════════════════════
+     Summary
+     ════════════════════════════════════════ -->
+<h2 id="sec-summary" class="section-title"><span class="num">小结</span>确定性分析流程</h2>
+
+<div class="summary-box">
+  <h3>非平稳序列确定性分析的标准流程</h3>
+  <div class="diagram-figure" style="margin:0; border:none; box-shadow:none; padding:0;">
+    <div class="mermaid">
+flowchart LR
+    A[原始非平稳序列<br/>x<sub>t</sub>] --> B[分解模型选择<br/>加法 / 乘法]
+    B --> C[趋势提取<br/>拟合法 / 平滑法]
+    C --> D[季节调整<br/>季节指数计算]
+    D --> E[残差分析<br/>平稳性检验]
+    E --> F[对平稳残差<br/>建立ARMA模型]
+    style A fill:#eef2ff,stroke:#4338ca,stroke-width:2px
+    style B fill:#ecfdf5,stroke:#059669,stroke-width:2px
+    style C fill:#eef2ff,stroke:#4338ca,stroke-width:2px
+    style D fill:#ecfdf5,stroke:#059669,stroke-width:2px
+    style E fill:#fffbeb,stroke:#d97706,stroke-width:2px
+    style F fill:#f3f4f6,stroke:#1e3a5f,stroke-width:2px
+    </div>
+  </div>
+  <p style="margin-top:1rem; font-size:0.9rem; color:var(--text-secondary);">图 4-4 确定性分析完整流程：从原始序列的分解到最终对平稳残差建立ARMA模型，构成经典时间序列分析的"分解—建模"范式。</p>
+</div>
+
+<p>本章所介绍的确定性分析方法——趋势拟合、平滑处理、季节调整与X-11分解——为后续学习ARIMA模型、协整分析以及波动率模型奠定了重要的预处理基础。在实际金融工程应用中，准确提取确定性成分不仅能够避免伪回归，还能帮助分析师识别经济周期的拐点、评估政策的真实效果，以及构建更稳健的预测模型。</p>
+
+</div><!-- /content -->
+
+<!-- ─── Footer ─── -->
+<footer class="page-footer">
+  <div class="footer-inner">
+    <div class="footer-title">参考文献</div>
+    <ul class="footer-refs">
+      <li data-idx="1">Box, G. E. P., Jenkins, G. M., Reinsel, G. C., & Ljung, G. M. (2015). <em>Time Series Analysis: Forecasting and Control</em> (5th ed.). Wiley.</li>
+      <li data-idx="2">Shumway, R. H., & Stoffer, D. S. (2017). <em>Time Series Analysis and Its Applications: With R Examples</em> (4th ed.). Springer.</li>
+      <li data-idx="3">Findley, D. F., Monsell, B. C., Bell, W. R., Otto, M. C., & Chen, B. C. (1998). New Capabilities and Methods of the X-12-ARIMA Seasonal-Adjustment Program. <em>Journal of Business & Economic Statistics</em>, 16(2), 127-152.</li>
+      <li data-idx="4">王燕. (2015). 《应用时间序列分析》（第4版）. 中国人民大学出版社.</li>
+      <li data-idx="5">Tsay, R. S. (2010). <em>Analysis of Financial Time Series</em> (3rd ed.). Wiley.</li>
+    </ul>
+  </div>
+</footer>
+
+</main>
+</div><!-- /page-wrap -->
+
+<script>
+// ─── TOC Active State ───
+const tocLinks = document.querySelectorAll('.toc-nav a');
+const sections = document.querySelectorAll('h2[id], h3[id]');
+function updateToc() {
+  let current = '';
+  sections.forEach(sec => {
+    if (window.scrollY >= sec.offsetTop - 120) current = sec.id;
+  });
+  tocLinks.forEach(link => {
+    link.classList.toggle('active', link.getAttribute('href') === '#' + current);
+  });
+}
+window.addEventListener('scroll', updateToc);
+updateToc();
+
+// ─── Mermaid ───
+mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+  primaryColor: '#eef2ff',
+  primaryTextColor: '#1e293b',
+  primaryBorderColor: '#4338ca',
+  lineColor: '#64748b',
+  secondaryColor: '#ecfdf5',
+  tertiaryColor: '#fff'
+}});
+
+// ─── ECharts: Trend Fit Comparison ───
+(function() {
+  const chart = echarts.init(document.getElementById('chart-trend-fit'));
+  const t = Array.from({length:24}, (_,i)=>i+1);
+  const raw = t.map(v => 5 + 2.5*v + 3*Math.sin(v/2) + (Math.random()-0.5)*3);
+  const linear = t.map(v => 7.5 + 2.3*v);
+  const exp = t.map(v => 8 * Math.exp(0.09*v));
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['原始序列', '线性拟合', '指数拟合'], bottom: 0 },
+    grid: { left: '3%', right: '4%', bottom: '15%', top: '10%', containLabel: true },
+    xAxis: { type: 'category', data: t, name: '时间 t', axisLine: { lineStyle: { color: '#94a3b8' } } },
+    yAxis: { type: 'value', name: '数值', axisLine: { lineStyle: { color: '#94a3b8' } }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
+    series: [
+      { name: '原始序列', type: 'scatter', data: raw, symbolSize: 7, itemStyle: { color: '#1e293b' } },
+      { name: '线性拟合', type: 'line', data: linear, smooth: false, lineStyle: { color: '#4338ca', width: 2.5 }, symbol: 'none' },
+      { name: '指数拟合', type: 'line', data: exp, smooth: true, lineStyle: { color: '#059669', width: 2.5, type: 'dashed' }, symbol: 'none' }
+    ]
+  });
+})();
+
+// ─── ECharts: Seasonal Effect ───
+(function() {
+  const chart = echarts.init(document.getElementById('chart-seasonal'));
+  const months = Array.from({length:24}, (_,i)=>`${Math.floor(i/12)+1}年${(i%12)+1}月`);
+  const trend = Array.from({length:24}, (_,i)=> 50 + 1.5*i);
+  const seasonal = [0.85,0.82,0.95,1.02,1.05,1.15,1.18,1.12,1.00,0.98,0.92,0.96];
+  const raw = trend.map((t,i) => t * seasonal[i%12] + (Math.random()-0.5)*3);
+  const seasonalIdx = seasonal.map((s,i)=>({value:(s*100).toFixed(1), name:`${i+1}月`}));
+
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['原始序列', '趋势', '季节指数(%)'], bottom: 0 },
+    grid: [ { left: '8%', right: '8%', top: '10%', height: '32%' }, { left: '8%', right: '8%', top: '58%', height: '28%' } ],
+    xAxis: [
+      { type: 'category', data: months, gridIndex: 0, axisLabel: { show: false }, axisLine: { lineStyle: { color: '#94a3b8' } } },
+      { type: 'category', data: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'], gridIndex: 1, axisLine: { lineStyle: { color: '#94a3b8' } } }
+    ],
+    yAxis: [
+      { type: 'value', name: '序列值', gridIndex: 0, axisLine: { lineStyle: { color: '#94a3b8' } }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
+      { type: 'value', name: '季节指数', gridIndex: 1, min: 70, max: 130, axisLine: { lineStyle: { color: '#94a3b8' } }, splitLine: { lineStyle: { color: '#f1f5f9' } } }
+    ],
+    series: [
+      { name: '原始序列', type: 'line', data: raw, xAxisIndex: 0, yAxisIndex: 0, lineStyle: { color: '#4338ca', width: 2 }, itemStyle: { color: '#4338ca' }, symbolSize: 5 },
+      { name: '趋势', type: 'line', data: trend, xAxisIndex: 0, yAxisIndex: 0, lineStyle: { color: '#94a3b8', width: 2, type: 'dashed' }, symbol: 'none' },
+      { name: '季节指数(%)', type: 'bar', data: seasonal.map(s=>(s*100).toFixed(1)), xAxisIndex: 1, yAxisIndex: 1, itemStyle: { color: '#059669', borderRadius: [4,4,0,0] }, barWidth: '50%' }
+    ]
+  });
+})();
+
+// ─── ECharts: Decomposition ───
+(function() {
+  const chart = echarts.init(document.getElementById('chart-decomposition'));
+  const t = Array.from({length:36}, (_,i)=>i+1);
+  const months = t.map(i=>`${i}月`);
+  const trend = t.map(i => 40 + 1.2*i + 0.01*i*i);
+  const seasonal = t.map(i => 5*Math.sin((i%12)/12*2*Math.PI) + 3*Math.cos((i%12)/12*2*Math.PI));
+  const irregular = t.map(() => (Math.random()-0.5)*4);
+  const raw = t.map((_,i) => trend[i] + seasonal[i] + irregular[i]);
+
+  const makeSeries = (name, data, color, axisIdx) => ({
+    name, type: 'line', data, xAxisIndex: axisIdx, yAxisIndex: axisIdx,
+    lineStyle: { color, width: 1.8 }, symbol: 'none', areaStyle: { color, opacity: 0.1 }
+  });
+
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['原始序列','趋势','季节效应','残差'], bottom: 0 },
+    grid: [
+      { left: '10%', right: '5%', top: '6%', height: '18%' },
+      { left: '10%', right: '5%', top: '30%', height: '18%' },
+      { left: '10%', right: '5%', top: '54%', height: '18%' },
+      { left: '10%', right: '5%', top: '78%', height: '18%' }
+    ],
+    xAxis: [
+      { type: 'category', data: months, gridIndex: 0, axisLabel: { show: false }, axisLine: { lineStyle: { color: '#cbd5e1' } } },
+      { type: 'category', data: months, gridIndex: 1, axisLabel: { show: false }, axisLine: { lineStyle: { color: '#cbd5e1' } } },
+      { type: 'category', data: months, gridIndex: 2, axisLabel: { show: false }, axisLine: { lineStyle: { color: '#cbd5e1' } } },
+      { type: 'category', data: months, gridIndex: 3, axisLine: { lineStyle: { color: '#cbd5e1' } } }
+    ],
+    yAxis: [
+      { type: 'value', name: '原始', gridIndex: 0, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { fontSize: 10, color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
+      { type: 'value', name: '趋势', gridIndex: 1, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { fontSize: 10, color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
+      { type: 'value', name: '季节', gridIndex: 2, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { fontSize: 10, color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
+      { type: 'value', name: '残差', gridIndex: 3, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { fontSize: 10, color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } }
+    ],
+    series: [
+      makeSeries('原始序列', raw, '#4338ca', 0),
+      makeSeries('趋势', trend, '#059669', 1),
+      makeSeries('季节效应', seasonal, '#d97706', 2),
+      makeSeries('残差', irregular, '#64748b', 3)
+    ]
+  });
+})();
+
+// ─── Responsive Resize ───
+window.addEventListener('resize', () => {
+  ['chart-trend-fit','chart-seasonal','chart-decomposition'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.echartsInstance) el.echartsInstance.resize();
+    else if (el) echarts.getInstanceByDom(el)?.resize();
+  });
+});
+</script>
+
+</body>
+</html>
